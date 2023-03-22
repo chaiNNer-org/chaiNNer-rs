@@ -1,0 +1,21 @@
+[build-system]
+requires = ["maturin>=0.14,<0.15"]
+build-backend = "maturin"
+
+[project]
+name = "chainner_rs"
+version = "0.0.0"
+description = "Lovely Spam! Wonderful Spam!"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    # https://github.com/PyO3/rust-numpy
+    "numpy>=1.16.0",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
