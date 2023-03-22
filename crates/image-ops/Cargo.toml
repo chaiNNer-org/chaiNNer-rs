@@ -13,3 +13,8 @@ image-core.workspace = true
 
 [dev-dependencies]
 test-util.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "my_benchmark"
+harness = false

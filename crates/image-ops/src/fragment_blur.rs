@@ -157,9 +157,10 @@ where
         *c = if *c == 0 { 1 } else { *c }
     }
 
-    for (p, c) in d.iter_mut().zip(count_array) {
-        // c can never be 0, so division is fine
-        p.div_assign(c as f32);
+    let c = &count_array[..];
+    assert!(c.len() == d.len());
+    for i in 0..d.len() {
+        d[i].div_assign(c[i] as f32);
     }
 
     dest
