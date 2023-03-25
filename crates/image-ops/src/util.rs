@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Range};
 
 use image_core::{Image, Size};
 
@@ -46,11 +46,7 @@ impl<'a, P> DerefMut for ImageCow<'a, P> {
     }
 }
 
-pub fn from_const_cow<'a, P: Clone>(
-    size: Size,
-    c: P,
-    out: Option<&'a mut Image<P>>,
-) -> ImageCow<'a, P> {
+pub fn from_const_cow<P: Clone>(size: Size, c: P, out: Option<&mut Image<P>>) -> ImageCow<'_, P> {
     if let Some(out) = out {
         assert_eq!(out.size(), size);
         out.fill(c);
@@ -70,5 +66,18 @@ pub fn from_image_cow<'a, P: Copy>(
         ImageCow::Borrowed(out)
     } else {
         ImageCow::Owned(img.clone())
+    }
+}
+
+pub fn move_range_i(range: &Range<usize>, offset: isize) -> Range<usize> {
+    Range {
+        start: (range.start as isize + offset) as usize,
+        end: (range.end as isize + offset) as usize,
+    }
+}
+pub fn move_range(range: &Range<usize>, offset: usize) -> Range<usize> {
+    Range {
+        start: range.start + offset,
+        end: range.end + offset,
     }
 }

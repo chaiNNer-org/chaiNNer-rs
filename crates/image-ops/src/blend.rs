@@ -7,7 +7,9 @@ use image_core::Image;
 pub fn overlay_self_mut(img: &mut Image<Vec4>, n: u32) {
     if n < 2 {
         return;
-    } else if n == 2 {
+    }
+
+    if n == 2 {
         for p in img.data_mut() {
             let a_i = 1. - p.w;
             p.w = 1. - a_i * a_i;
@@ -31,8 +33,7 @@ pub fn overlay_mut(img: &mut Image<Vec4>, top: &Image<Vec4>) {
     let data = img.data_mut();
     assert!(data.len() == top.len());
 
-    for i in 0..data.len() {
-        let a = &mut data[i];
+    for (i, a) in data.iter_mut().enumerate() {
         let b = top.data()[i];
 
         let final_alpha = 1. - (1. - a.w) * (1. - b.w);

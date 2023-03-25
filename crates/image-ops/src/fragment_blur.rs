@@ -6,7 +6,7 @@ use std::{
 use glam::Vec4;
 use image_core::Image;
 
-use crate::util::from_const;
+use crate::util::{from_const, move_range, move_range_i};
 
 struct Offset(isize, isize);
 
@@ -28,13 +28,6 @@ fn offset_range(offset: isize, len: usize) -> Range<usize> {
     let start = (-offset).clamp(0, len as isize) as usize;
     let end = (len as isize - offset).clamp(0, len as isize) as usize;
     start..end
-}
-
-fn move_range(range: &Range<usize>, offset: isize) -> Range<usize> {
-    Range {
-        start: (range.start as isize + offset) as usize,
-        end: (range.end as isize + offset) as usize,
-    }
 }
 
 /// Applies fragment blur to the given image.
@@ -65,8 +58,8 @@ pub fn fragment_blur_premultiplied_alpha(
         }
         let index_offset = offset_y * w as isize + offset_x;
         for y in y_range {
-            let dest_range = move_range(&x_range, (y * w) as isize);
-            let src_range = move_range(&dest_range, index_offset);
+            let dest_range = move_range(&x_range, y * w);
+            let src_range = move_range_i(&dest_range, index_offset);
 
             let src_data = &s_data[src_range];
             let dst_data = &mut d[dest_range.clone()];
@@ -134,8 +127,8 @@ where
         }
         let index_offset = offset_y * w as isize + offset_x;
         for y in y_range {
-            let dest_range = move_range(&x_range, (y * w) as isize);
-            let src_range = move_range(&dest_range, index_offset);
+            let dest_range = move_range(&x_range, y * w);
+            let src_range = move_range_i(&dest_range, index_offset);
 
             let src_data = &s_data[src_range];
             let dst_data = &mut d[dest_range.clone()];

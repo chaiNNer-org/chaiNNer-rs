@@ -79,7 +79,7 @@ fn new_rgba<P: ToRGBA>(image: &Image<P>) -> RgbaImage {
     assert!(rest.is_empty());
     let image_data = image.data();
     assert_eq!(chunks.len(), image_data.len());
-    for (p, i) in chunks.into_iter().zip(image_data) {
+    for (p, i) in chunks.iter_mut().zip(image_data) {
         *p = i.to_rgba();
     }
     rgba
@@ -99,14 +99,14 @@ fn get_snap_path(snap_id: &str) -> String {
     SNAP_DIR.to_owned() + snap_id + ".png"
 }
 
-fn read_snap(snap_id: &str) -> Vec<u8> {
+fn read_snap(snap_id: &str) -> Option<Vec<u8>> {
     let snap_path = get_snap_path(snap_id);
     let file = File::open(&snap_path);
     let mut file = match file {
         Ok(file) => file,
         Err(_) => {
-            if Path::new(&snap_path).exists() {
-                unreachable!("No snapshot for {}", snap_id)
+            if !Path::new(&snap_path).exists() {
+                return None;
             }
             unreachable!("Unable to read snapshot for {}", snap_id)
         }
@@ -114,30 +114,29 @@ fn read_snap(snap_id: &str) -> Vec<u8> {
 
     let mut snap_bytes = Vec::new();
     file.read_to_end(&mut snap_bytes).unwrap();
-    snap_bytes
+    Some(snap_bytes)
+}
+
+fn write_snap(snap_id: &str, data: &[u8]) {
+    let snap_path = get_snap_path(snap_id);
+    create_dir_all(SNAP_DIR).unwrap();
+    let mut file = File::create(snap_path).unwrap();
+    file.write_all(data).unwrap();
 }
 
 fn compare_snapshot(image: RgbaImage, snap_id: &str) {
     let bytes = get_png_bytes(&image);
 
-    let snap_path = get_snap_path(snap_id);
-
-    if cfg!(feature = "snap-write") {
-        if Path::new(&snap_path).exists() {
-            let snap_bytes = read_snap(snap_id);
-            if snap_bytes == bytes {
-                // snap is still up to date
-                return;
+    if let Some(snap_bytes) = read_snap(snap_id) {
+        let unchanged = snap_bytes == bytes;
+        if cfg!(feature = "snap-write") {
+            if !unchanged {
+                write_snap(snap_id, &bytes);
             }
         } else {
-            create_dir_all(SNAP_DIR).unwrap();
+            assert!(unchanged, "The result for {} changed.", snap_id);
         }
-
-        let mut file = File::create(snap_path).unwrap();
-        file.write_all(&bytes).unwrap();
     } else {
-        let snap_bytes = read_snap(snap_id);
-        let unchanged = snap_bytes == bytes;
-        assert!(unchanged, "The result for {} changed.", snap_id);
+        write_snap(snap_id, &bytes);
     }
 }

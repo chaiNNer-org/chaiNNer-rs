@@ -28,7 +28,10 @@ impl Shape {
         Size::new(self.width, self.height)
     }
     pub fn len(&self) -> usize {
-        return self.width * self.height * self.channels;
+        self.width * self.height * self.channels
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 

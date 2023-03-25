@@ -18,7 +18,7 @@ fn into_vec4(image: DynamicImage) -> Image<Vec4> {
     let (chunks, rest) = image.as_chunks::<4>();
     assert!(rest.is_empty());
     let data = chunks
-        .into_iter()
+        .iter()
         .map(|[r, g, b, a]| Vec4::new(*r, *g, *b, *a))
         .collect();
     Image::new(size, data)
@@ -29,7 +29,7 @@ fn into_vec3(image: DynamicImage) -> Image<Vec3A> {
     let (chunks, rest) = image.as_chunks::<3>();
     assert!(rest.is_empty());
     let data = chunks
-        .into_iter()
+        .iter()
         .map(|[r, g, b]| Vec3A::new(*r, *g, *b))
         .collect();
     Image::new(size, data)

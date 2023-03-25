@@ -55,7 +55,7 @@ fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
 
     /// Inverts the colors of a given image.
     #[pyfn(m)]
-    fn rainbow<'py>(py: Python<'py>) -> PyResult<&'py PyArray3<f32>> {
+    fn rainbow(py: Python<'_>) -> PyResult<&PyArray3<f32>> {
         let result = py.allow_threads(move || {
             let rainbow = Image::from_fn(Size::new(256, 256), |x, y| {
                 [x as f32 / 255., y as f32 / 255., 0.]

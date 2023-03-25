@@ -76,10 +76,10 @@ generate_into_numpy_array!(Vec2, 2);
 generate_into_numpy_fn!((f32, f32), 2, |(x, y)| [x, y]);
 
 pub trait IntoPy {
-    fn into_py<'py>(self, py: Python<'py>) -> &'py PyArray<f32, Ix3>;
+    fn into_py(self, py: Python<'_>) -> &PyArray<f32, Ix3>;
 }
 impl<T: IntoNumpy> IntoPy for T {
-    fn into_py<'py>(self, py: Python<'py>) -> &'py PyArray<f32, Ix3> {
+    fn into_py(self, py: Python<'_>) -> &PyArray<f32, Ix3> {
         self.into_numpy().into_pyarray(py)
     }
 }
@@ -96,7 +96,7 @@ pub trait FromNumpy<T> {
 
 impl<'py> FromNumpy<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
     fn from_numpy(&self) -> Result<NDimImage, ShapeMismatch> {
-        let (shape, data) = read_numpy(&self);
+        let (shape, data) = read_numpy(self);
         let data = match data {
             Cow::Borrowed(s) => s.to_vec(),
             Cow::Owned(v) => v,
@@ -106,7 +106,7 @@ impl<'py> FromNumpy<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
 }
 impl<'py> FromNumpy<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
     fn from_numpy(&self) -> Result<Image<f32>, ShapeMismatch> {
-        let (shape, data) = read_numpy(&self);
+        let (shape, data) = read_numpy(self);
         if shape.channels == 1 {
             let data = match data {
                 Cow::Borrowed(s) => s.to_vec(),
@@ -123,7 +123,7 @@ impl<'py> FromNumpy<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
 }
 impl<'py, const N: usize> FromNumpy<Image<[f32; N]>> for PyReadonlyArrayDyn<'py, f32> {
     fn from_numpy(&self) -> Result<Image<[f32; N]>, ShapeMismatch> {
-        let (shape, data) = read_numpy(&self);
+        let (shape, data) = read_numpy(self);
 
         if shape.channels == N {
             let (chunks, rest) = data.as_chunks();
@@ -139,7 +139,7 @@ impl<'py, const N: usize> FromNumpy<Image<[f32; N]>> for PyReadonlyArrayDyn<'py,
 }
 impl<'py> FromNumpy<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
     fn from_numpy(&self) -> Result<Image<Vec4>, ShapeMismatch> {
-        let (shape, data) = read_numpy(&self);
+        let (shape, data) = read_numpy(self);
 
         if shape.channels == 1 {
             let data = data.iter().map(|g| Vec4::new(*g, *g, *g, 1.)).collect();
