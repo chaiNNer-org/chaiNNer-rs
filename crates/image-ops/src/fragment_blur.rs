@@ -4,7 +4,9 @@ use std::{
 };
 
 use glam::Vec4;
-use image_core::{Image, Size};
+use image_core::Image;
+
+use crate::util::from_const;
 
 struct Offset(isize, isize);
 
@@ -19,16 +21,6 @@ fn get_offsets(radius: f32, count: usize, angle_offset: f32) -> Vec<Offset> {
             Offset(x, y)
         })
         .collect()
-}
-
-fn get_destination<P: Clone>(size: Size, c: P, out: Option<Image<P>>) -> Image<P> {
-    if let Some(mut out) = out {
-        assert_eq!(out.size(), size);
-        out.fill(c);
-        out
-    } else {
-        Image::from_const(size, c)
-    }
 }
 
 /// Returns a range such that all values in the range `+ offset` are in the range `0..len`.
@@ -55,7 +47,7 @@ pub fn fragment_blur_premultiplied_alpha(
     angle_offset: f32,
     out: Option<Image<Vec4>>,
 ) -> Image<Vec4> {
-    let mut dest = get_destination(src.size(), Vec4::ZERO, out);
+    let mut dest = from_const(src.size(), Vec4::ZERO, out);
     let w = src.width();
     let h = src.height();
 
@@ -68,6 +60,9 @@ pub fn fragment_blur_premultiplied_alpha(
     for Offset(offset_x, offset_y) in get_offsets(radius, count, angle_offset) {
         let x_range = offset_range(offset_x, w);
         let y_range = offset_range(offset_y, h);
+        if x_range.is_empty() || y_range.is_empty() {
+            continue;
+        }
         let index_offset = offset_y * w as isize + offset_x;
         for y in y_range {
             let dest_range = move_range(&x_range, (y * w) as isize);
@@ -121,7 +116,7 @@ pub fn fragment_blur<P>(
 where
     P: Clone + Default + AddAssign + DivAssign<f32>,
 {
-    let mut dest = get_destination(src.size(), Default::default(), out);
+    let mut dest = from_const(src.size(), Default::default(), out);
     let w = src.width();
     let h = src.height();
 
@@ -134,6 +129,9 @@ where
     for Offset(offset_x, offset_y) in get_offsets(radius, count, angle_offset) {
         let x_range = offset_range(offset_x, w);
         let y_range = offset_range(offset_y, h);
+        if x_range.is_empty() || y_range.is_empty() {
+            continue;
+        }
         let index_offset = offset_y * w as isize + offset_x;
         for y in y_range {
             let dest_range = move_range(&x_range, (y * w) as isize);
@@ -169,7 +167,7 @@ where
 #[cfg(test)]
 mod tests {
     use test_util::{
-        data::{read_flower_transparent, read_portrait, read_abstract_transparent},
+        data::{read_abstract_transparent, read_flower_transparent, read_portrait},
         snap::ImageSnapshot,
     };
 

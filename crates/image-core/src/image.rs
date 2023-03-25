@@ -8,6 +8,12 @@ pub struct Size {
 }
 
 impl Size {
+    pub fn empty() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+        }
+    }
     pub fn new(width: usize, height: usize) -> Self {
         Self { width, height }
     }
@@ -21,6 +27,9 @@ impl Size {
     pub fn len(&self) -> usize {
         self.width * self.height
     }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
     /// Returns an iterator that goes through all positions of this size in row major order.
     pub fn iter_pos(&self) -> impl Iterator<Item = (usize, usize)> {
@@ -30,13 +39,19 @@ impl Size {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Image<P> {
     data: Vec<P>,
     size: Size,
 }
 
 impl<P> Image<P> {
+    pub fn empty() -> Self {
+        Self {
+            data: Vec::new(),
+            size: Size::empty(),
+        }
+    }
     pub fn new(size: Size, data: Vec<P>) -> Self {
         assert_eq!(size.len(), data.len());
         Self { data, size }
@@ -48,6 +63,15 @@ impl<P> Image<P> {
         data.extend((0..size.height).flat_map(|y| (0..size.width).map(move |x| f(x, y))));
 
         Self::new(size, data)
+    }
+    pub fn from_const(size: Size, constant: P) -> Self
+    where
+        P: Clone,
+    {
+        Self {
+            data: vec![constant; size.len()],
+            size,
+        }
     }
 
     pub fn size(&self) -> Size {
@@ -63,6 +87,9 @@ impl<P> Image<P> {
     pub fn len(&self) -> usize {
         self.size().len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.size().is_empty()
+    }
 
     pub fn take(self) -> Vec<P> {
         self.data
@@ -75,7 +102,7 @@ impl<P> Image<P> {
         self.data.as_slice()
     }
 
-    pub fn rows<'a>(&'a self) -> ChunksExact<'a, P> {
+    pub fn rows(&self) -> ChunksExact<'_, P> {
         self.data().chunks_exact(self.width())
     }
 
@@ -111,19 +138,10 @@ impl<P> Image<P> {
             *p = f(p);
         }
     }
-}
-impl<P> Image<P>
-where
-    P: Clone,
-{
-    pub fn from_const(size: Size, constant: P) -> Self {
-        Self {
-            data: vec![constant; size.len()],
-            size,
-        }
-    }
-
-    pub fn fill(&mut self, c: P) {
+    pub fn fill(&mut self, c: P)
+    where
+        P: Clone,
+    {
         self.data.fill(c);
     }
 }
