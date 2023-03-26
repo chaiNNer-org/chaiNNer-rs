@@ -9,8 +9,13 @@ use crate::{
 };
 
 pub enum FillMode {
-    Texture,
-    Color { iterations: u32 },
+    Texture {
+        iterations: u32,
+        fragment_count: u32,
+    },
+    Color {
+        iterations: u32,
+    },
 }
 
 pub fn fill_alpha(
@@ -22,7 +27,10 @@ pub fn fill_alpha(
     make_binary_alpha(image.data_mut(), threshold);
 
     match mode {
-        FillMode::Texture => fill_alpha_fragment_blur(image, temp),
+        FillMode::Texture {
+            iterations,
+            fragment_count,
+        } => fill_alpha_fragment_blur(image, iterations, fragment_count, temp),
         FillMode::Color { iterations } => fill_alpha_extend(image, iterations as usize),
     }
 }
@@ -35,15 +43,30 @@ fn make_binary_alpha(pixels: &mut [Vec4], threshold: f32) {
     }
 }
 
-fn fill_alpha_fragment_blur(image: &mut Image<Vec4>, temp: Option<&mut Image<Vec4>>) {
+fn fill_alpha_fragment_blur(
+    image: &mut Image<Vec4>,
+    iterations: u32,
+    fragment_count: u32,
+    temp: Option<&mut Image<Vec4>>,
+) {
+    if iterations == 0 {
+        return;
+    }
+
     let original = &*from_image_cow(image, temp);
     let mut buffer: Image<Vec4> = Image::from_const(image.size(), Vec4::ZERO);
 
-    for i in 0..6 {
+    for i in 0..iterations {
         let radius = (1 << i) as f32;
         let angle_offset = i as f32;
 
-        buffer = fragment_blur_alpha(original, radius, 5, angle_offset, Some(buffer));
+        buffer = fragment_blur_alpha(
+            original,
+            radius,
+            fragment_count as usize,
+            angle_offset,
+            Some(buffer),
+        );
         overlay_self_mut(&mut buffer, 2);
         overlay_mut(&mut buffer, image);
         std::mem::swap(&mut buffer, image);
@@ -313,7 +336,15 @@ mod tests {
     #[test]
     fn fill_alpha_texture() {
         let mut original = read_flower_transparent();
-        super::fill_alpha(&mut original, 0.15, super::FillMode::Texture, None);
+        super::fill_alpha(
+            &mut original,
+            0.15,
+            super::FillMode::Texture {
+                iterations: 6,
+                fragment_count: 5,
+            },
+            None,
+        );
         original.snapshot("fill_alpha_texture");
     }
 
