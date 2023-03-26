@@ -12,6 +12,7 @@ pub fn from_const<P: Clone>(size: Size, c: P, out: Option<Image<P>>) -> Image<P>
     }
 }
 
+#[allow(unused)]
 pub fn from_image<P: Copy>(img: &Image<P>, out: Option<Image<P>>) -> Image<P> {
     if let Some(mut out) = out {
         assert_eq!(out.size(), img.size());
@@ -46,6 +47,7 @@ impl<'a, P> DerefMut for ImageCow<'a, P> {
     }
 }
 
+#[allow(unused)]
 pub fn from_const_cow<P: Clone>(size: Size, c: P, out: Option<&mut Image<P>>) -> ImageCow<'_, P> {
     if let Some(out) = out {
         assert_eq!(out.size(), size);
@@ -79,5 +81,18 @@ pub fn move_range(range: &Range<usize>, offset: usize) -> Range<usize> {
     Range {
         start: range.start + offset,
         end: range.end + offset,
+    }
+}
+
+pub fn process_pairs<'a, T: 'a + ?Sized>(
+    iter: impl IntoIterator<Item = &'a mut T>,
+    mut f: impl FnMut(&mut T, &mut T),
+) {
+    let mut iter = iter.into_iter();
+    if let Some(mut prev) = iter.next() {
+        for next in iter {
+            f(prev, next);
+            prev = next;
+        }
     }
 }
