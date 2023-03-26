@@ -86,23 +86,25 @@ fn fill_alpha_fragment_blur(
 }
 
 #[derive(Debug, Clone)]
-struct Grid {
+struct Grid<const CELL_SIZE: usize = 8> {
     lines: Box<[FixedBits]>,
     width: usize,
 }
 
-impl Grid {
-    const CELL_SIZE: usize = 8;
+impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
+    const fn cell_size(&self) -> usize {
+        CELL_SIZE
+    }
 
     fn get_grid_size(size: Size) -> (usize, usize) {
-        let grid_w = (size.width as f64 / Self::CELL_SIZE as f64).ceil() as usize;
-        let grid_h = (size.height as f64 / Self::CELL_SIZE as f64).ceil() as usize;
+        let grid_w = (size.width as f64 / CELL_SIZE as f64).ceil() as usize;
+        let grid_h = (size.height as f64 / CELL_SIZE as f64).ceil() as usize;
         (grid_w, grid_h)
     }
 
     fn cell_to_pixel_dimension(cell: usize, image_size: usize) -> Range<usize> {
-        let start = cell * Self::CELL_SIZE;
-        let end = ((cell + 1) * Self::CELL_SIZE).min(image_size);
+        let start = cell * CELL_SIZE;
+        let end = ((cell + 1) * CELL_SIZE).min(image_size);
         start..end
     }
     fn cell_to_pixel(
@@ -332,16 +334,16 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
         return;
     }
 
-    let mut grid = Grid::from_image_size(image.size());
+    let mut grid: Grid<8> = Grid::from_image_size(image.size());
     grid.fill_with_image_size(image.size(), |x, y| is_to_fill(image, x, y));
 
     let mut fills = Vec::with_capacity(image.width().max(image.height()) * 4);
 
     for i in 0..iterations {
-        if i > 0 && i % Grid::CELL_SIZE == 0 {
+        if i > 0 && i % grid.cell_size() == 0 {
             grid.and_any(image.size(), |x, y| is_to_fill(image, x, y));
         }
-        if i % Grid::CELL_SIZE == 1 {
+        if i % grid.cell_size() == 1 {
             grid.expand_one();
             grid.and_any_index(image.size(), |i| is_transparent(image, i));
         }
@@ -383,7 +385,12 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
     }
 }
 
-fn within_radius_grid(w: usize, h: usize, transparent: &[bool], radius: u32) -> Grid {
+fn within_radius_grid<const N: usize>(
+    w: usize,
+    h: usize,
+    transparent: &[bool],
+    radius: u32,
+) -> Grid<N> {
     let size = Size::new(w, h);
 
     let mut transparency_grid = Grid::from_image_size(size);
@@ -396,7 +403,7 @@ fn within_radius_grid(w: usize, h: usize, transparent: &[bool], radius: u32) -> 
     let mut opaque_grid = Grid::from_image_size(size);
     opaque_grid.fill_with_image_size_index(size, |i| !transparent[i]);
 
-    let iters = div_ceil(radius as usize, Grid::CELL_SIZE);
+    let iters = div_ceil(radius as usize, opaque_grid.cell_size());
     for _ in 0..iters {
         // TODO: Make this less stupid
         opaque_grid.expand_one();
@@ -416,7 +423,7 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         *t = p.w == 0.;
     }
 
-    let to_process = within_radius_grid(w, h, &transparent, radius);
+    let to_process: Grid<8> = within_radius_grid(w, h, &transparent, radius);
 
     // fill tree
     let mut points = Vec::with_capacity(w.max(h) * 4);
