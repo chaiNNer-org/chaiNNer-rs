@@ -1,11 +1,13 @@
 use glam::Vec4;
 use image_core::{Image, Size};
-use std::{ops::Range, slice::ChunksMut};
+use rstar::{primitives::GeomWithData, RTree};
+use std::ops::Range;
 
 use crate::{
+    bits::FixedBits,
     blend::{overlay_mut, overlay_self_mut},
     fragment_blur::fragment_blur_alpha,
-    util::{from_image_cow, move_range, process_pairs},
+    util::{div_ceil, from_image_cow, move_range, process_pairs},
 };
 
 pub enum FillMode {
@@ -15,6 +17,10 @@ pub enum FillMode {
     },
     Color {
         iterations: u32,
+    },
+    Nearest {
+        min_radius: u32,
+        anti_aliasing: bool,
     },
 }
 
@@ -32,6 +38,10 @@ pub fn fill_alpha(
             fragment_count,
         } => fill_alpha_fragment_blur(image, iterations, fragment_count, temp),
         FillMode::Color { iterations } => fill_alpha_extend(image, iterations as usize),
+        FillMode::Nearest {
+            min_radius: radius,
+            anti_aliasing,
+        } => fill_alpha_nearest(image, radius, anti_aliasing),
     }
 }
 
@@ -75,10 +85,10 @@ fn fill_alpha_fragment_blur(
     make_binary_alpha(image.data_mut(), 0.01);
 }
 
+#[derive(Debug, Clone)]
 struct Grid {
-    cells: Box<[bool]>,
+    lines: Box<[FixedBits]>,
     width: usize,
-    height: usize,
 }
 
 impl Grid {
@@ -89,21 +99,26 @@ impl Grid {
         let grid_h = (size.height as f64 / Self::CELL_SIZE as f64).ceil() as usize;
         (grid_w, grid_h)
     }
+
+    fn cell_to_pixel_dimension(cell: usize, image_size: usize) -> Range<usize> {
+        let start = cell * Self::CELL_SIZE;
+        let end = ((cell + 1) * Self::CELL_SIZE).min(image_size);
+        start..end
+    }
     fn cell_to_pixel(
         (cell_x, cell_y): (usize, usize),
         image_size: Size,
     ) -> (Range<usize>, Range<usize>) {
         (
-            (cell_x * Self::CELL_SIZE)..(((cell_x + 1) * Self::CELL_SIZE).min(image_size.width)),
-            (cell_y * Self::CELL_SIZE)..(((cell_y + 1) * Self::CELL_SIZE).min(image_size.height)),
+            Self::cell_to_pixel_dimension(cell_x, image_size.width),
+            Self::cell_to_pixel_dimension(cell_y, image_size.height),
         )
     }
 
     fn new(width: usize, height: usize) -> Self {
         Self {
-            cells: vec![false; width * height].into_boxed_slice(),
+            lines: vec![FixedBits::new(width); height].into_boxed_slice(),
             width,
-            height,
         }
     }
 
@@ -111,21 +126,14 @@ impl Grid {
         self.width
     }
     fn height(&self) -> usize {
-        self.height
+        self.lines.len()
     }
 
     fn get(&self, x: usize, y: usize) -> bool {
-        self.get_index(y * self.width() + x)
+        self.lines[y].get(x).unwrap()
     }
-    #[allow(unused)]
     fn set(&mut self, x: usize, y: usize, value: bool) {
-        self.set_index(y * self.width() + x, value);
-    }
-    fn get_index(&self, i: usize) -> bool {
-        self.cells[i]
-    }
-    fn set_index(&mut self, i: usize, value: bool) {
-        self.cells[i] = value;
+        self.lines[y].set(x, value)
     }
 
     fn from_image_size(size: Size) -> Self {
@@ -133,11 +141,11 @@ impl Grid {
         Self::new(w, h)
     }
 
-    fn fill_with_image<P>(&mut self, image: &Image<P>, f: impl Fn(usize, usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(image.size()));
+    fn fill_with_image_size(&mut self, size: Size, f: impl Fn(usize, usize) -> bool) {
+        assert!((self.width(), self.height()) == Self::get_grid_size(size));
 
         self.fill_cells(|_, cx, cy| {
-            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), image.size());
+            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
             for y in y_range {
                 for x in x_range.clone() {
                     if f(x, y) {
@@ -148,14 +156,30 @@ impl Grid {
             false
         })
     }
-    fn and_any<P>(&mut self, image: &Image<P>, f: impl Fn(usize, usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(image.size()));
+    fn fill_with_image_size_index(&mut self, size: Size, f: impl Fn(usize) -> bool) {
+        assert!((self.width(), self.height()) == Self::get_grid_size(size));
+
+        self.fill_cells(|_, cx, cy| {
+            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
+            for y in y_range {
+                for i in move_range(&x_range, y * size.width) {
+                    if f(i) {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
+
+    fn and_any(&mut self, size: Size, f: impl Fn(usize, usize) -> bool) {
+        assert!((self.width(), self.height()) == Self::get_grid_size(size));
 
         self.fill_cells(|old, cx, cy| {
             if !old {
                 return false;
             }
-            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), image.size());
+            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
             for y in y_range {
                 for x in x_range.clone() {
                     if f(x, y) {
@@ -166,40 +190,79 @@ impl Grid {
             false
         })
     }
+    fn and_any_index(&mut self, size: Size, f: impl Fn(usize) -> bool) {
+        assert!((self.width(), self.height()) == Self::get_grid_size(size));
+
+        self.fill_cells(|old, cx, cy| {
+            if !old {
+                return false;
+            }
+            let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
+            for y in y_range {
+                for i in move_range(&x_range, y * size.width) {
+                    if f(i) {
+                        return true;
+                    }
+                }
+            }
+            false
+        })
+    }
+
     fn fill_cells(&mut self, f: impl Fn(bool, usize, usize) -> bool) {
         let w = self.width();
         let h = self.height();
 
         for y in 0..h {
             for x in 0..w {
-                let i = y * w + x;
-                self.set_index(i, f(self.get_index(i), x, y));
+                self.set(x, y, f(self.get(x, y), x, y));
             }
         }
     }
 
+    fn and(&mut self, other: &Self) {
+        assert_eq!(self.width(), other.width());
+        assert_eq!(self.height(), other.height());
+
+        for (a, b) in self.lines.iter_mut().zip(other.lines.iter()) {
+            a.and(b)
+        }
+    }
+
     fn expand_one(&mut self) {
-        fn get_lines(s: &mut Grid) -> ChunksMut<'_, bool> {
-            let w = s.width();
-            s.cells.chunks_mut(w)
-        }
-        fn or_many(a: &mut [bool], b: &mut [bool]) {
-            for (a, b) in a.iter_mut().zip(b) {
-                *a = *a || *b;
-            }
-        }
-        fn or(a: &mut bool, b: &mut bool) {
-            *a = *a || *b;
+        fn or_many(a: &mut FixedBits, b: &mut FixedBits) {
+            a.or(b)
         }
 
         // expand along y
-        process_pairs(get_lines(self), or_many);
-        process_pairs(get_lines(self).rev(), or_many);
+        process_pairs(self.lines.iter_mut(), or_many);
+        process_pairs(self.lines.iter_mut().rev(), or_many);
 
         // expand along x
-        for line in get_lines(self) {
-            process_pairs(line.iter_mut(), or);
-            process_pairs(line.iter_mut().rev(), or);
+        for line in self.lines.iter_mut() {
+            line.expand_one()
+        }
+    }
+
+    fn for_each_true(
+        &self,
+        size: Size,
+        mut f: impl FnMut(Range<usize>, Range<usize>, bool, usize),
+    ) {
+        let inner_x = 1..(self.width() - 1);
+        let inner_y = 1..(self.height() - 1);
+
+        for y in 0..self.height() {
+            let y_range = Self::cell_to_pixel_dimension(y, size.height);
+
+            for x in 0..self.width() {
+                if self.get(x, y) {
+                    let x_range = Self::cell_to_pixel_dimension(x, size.width);
+
+                    let is_inner = inner_x.contains(&x) && inner_y.contains(&y);
+                    f(x_range, y_range.clone(), is_inner, y * self.width() + x);
+                }
+            }
         }
     }
 }
@@ -270,52 +333,43 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
     }
 
     let mut grid = Grid::from_image_size(image.size());
-    grid.fill_with_image(image, |x, y| is_to_fill(image, x, y));
+    grid.fill_with_image_size(image.size(), |x, y| is_to_fill(image, x, y));
 
     let mut fills = Vec::with_capacity(image.width().max(image.height()) * 4);
 
     for i in 0..iterations {
         if i > 0 && i % Grid::CELL_SIZE == 0 {
-            grid.and_any(image, |x, y| is_to_fill(image, x, y));
+            grid.and_any(image.size(), |x, y| is_to_fill(image, x, y));
         }
         if i % Grid::CELL_SIZE == 1 {
             grid.expand_one();
-            grid.and_any(image, |x, y| is_transparent(image, y * image.width() + x));
+            grid.and_any_index(image.size(), |i| is_transparent(image, i));
         }
 
-        let inner_x = 1..(grid.width() - 1);
-        let inner_y = 1..(grid.height() - 1);
-
-        for cell_y in 0..grid.height() {
-            for cell_x in 0..grid.width() {
-                if grid.get(cell_x, cell_y) {
-                    let (x_range, y_range) = Grid::cell_to_pixel((cell_x, cell_y), image.size());
-
-                    if inner_x.contains(&cell_x) && inner_y.contains(&cell_y) {
-                        // inner cell
-                        for y in y_range {
-                            for i in move_range(&x_range, y * image.width()) {
-                                // SAFETY: This is an inner cell, so we are guaranteed to have at least one neighboring
-                                // pixel in all directions.
-                                if let Some(fill) = unsafe { get_fill_unchecked(image, i) } {
-                                    fills.push((i, fill));
-                                }
-                            }
+        grid.for_each_true(image.size(), |x_range, y_range, is_inner, _| {
+            if is_inner {
+                // inner cell
+                for y in y_range {
+                    for i in move_range(&x_range, y * image.width()) {
+                        // SAFETY: This is an inner cell, so we are guaranteed to have at least one neighboring
+                        // pixel in all directions.
+                        if let Some(fill) = unsafe { get_fill_unchecked(image, i) } {
+                            fills.push((i, fill));
                         }
-                    } else {
-                        // border cell
-                        for y in y_range {
-                            for x in x_range.clone() {
-                                let i = y * image.width() + x;
-                                if let Some(fill) = get_fill(image, i, x, y) {
-                                    fills.push((i, fill));
-                                }
-                            }
+                    }
+                }
+            } else {
+                // border cell
+                for y in y_range {
+                    for x in x_range.clone() {
+                        let i = y * image.width() + x;
+                        if let Some(fill) = get_fill(image, i, x, y) {
+                            fills.push((i, fill));
                         }
                     }
                 }
             }
-        }
+        });
 
         if fills.is_empty() {
             // no more filling is possible
@@ -326,6 +380,190 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
         for (i, fill) in fills.drain(..) {
             data[i] = fill;
         }
+    }
+}
+
+fn within_radius_grid(w: usize, h: usize, transparent: &[bool], radius: u32) -> Grid {
+    let size = Size::new(w, h);
+
+    let mut transparency_grid = Grid::from_image_size(size);
+    transparency_grid.fill_with_image_size_index(size, |i| transparent[i]);
+
+    if radius as usize >= w || radius as usize >= h {
+        return transparency_grid;
+    }
+
+    let mut opaque_grid = Grid::from_image_size(size);
+    opaque_grid.fill_with_image_size_index(size, |i| !transparent[i]);
+
+    let iters = div_ceil(radius as usize, Grid::CELL_SIZE);
+    for _ in 0..iters {
+        // TODO: Make this less stupid
+        opaque_grid.expand_one();
+    }
+
+    opaque_grid.and(&transparency_grid);
+    opaque_grid
+}
+
+fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool) {
+    let w = image.width();
+    let h = image.height();
+    let data = image.data_mut();
+
+    let mut transparent = vec![false; w * h].into_boxed_slice();
+    for (t, p) in transparent.iter_mut().zip(data.iter()) {
+        *t = p.w == 0.;
+    }
+
+    let to_process = within_radius_grid(w, h, &transparent, radius);
+
+    // fill tree
+    let mut points = Vec::with_capacity(w.max(h) * 4);
+    for y in 0..h {
+        for x in 0..w {
+            let i = y * w + x;
+            if !transparent[i]
+                && (x > 0 && transparent[i - 1]
+                    || x < w - 1 && transparent[i + 1]
+                    || y > 0 && transparent[i - w]
+                    || y < h - 1 && transparent[i + w])
+            {
+                // opaque pixel surrounded by at least one transparent pixel
+                points.push(GeomWithData::new((x as f32, y as f32), data[i]));
+            }
+        }
+    }
+
+    if points.is_empty() {
+        return;
+    }
+
+    let tree = rstar::RTree::bulk_load(points);
+    let mut samplers = Vec::from_iter(
+        std::iter::repeat_with(|| None).take(to_process.width() * to_process.height()),
+    );
+
+    to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+        let (center, radius) = circle_around(&x_range, &y_range);
+        let sampler = create_sampler_around(&tree, center, radius);
+        samplers[cell_index] = Some(sampler);
+    });
+
+    // set pixels
+    to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+        let sampler = samplers[cell_index].as_ref().unwrap();
+        for y in y_range {
+            for x in x_range.clone() {
+                let i = y * w + x;
+                if transparent[i] {
+                    data[i] = sampler(x as f32, y as f32);
+                }
+            }
+        }
+    });
+
+    if anti_aliasing {
+        // find edges
+        let mut edges = vec![false; w * h].into_boxed_slice();
+        for y in 0..h {
+            for i in move_range(&(1..w), y * w) {
+                let p = data[i - 1];
+                let n = data[i];
+                if p != n {
+                    edges[i - 1] = true;
+                    edges[i] = true;
+                }
+            }
+        }
+        for x in 0..w {
+            for y in 1..h {
+                let i = y * w + x;
+                let p = data[i - w];
+                let n = data[i];
+                if p != n {
+                    edges[i - w] = true;
+                    edges[i] = true;
+                }
+            }
+        }
+
+        // resolve edges
+        to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+            let sampler = samplers[cell_index].as_ref().unwrap();
+
+            for y in y_range {
+                for x in x_range.clone() {
+                    let i = y * w + x;
+                    if transparent[i] && edges[i] {
+                        let mut acc = data[i];
+
+                        acc += sampler(x as f32 + 0.333, y as f32 + 0.333);
+                        acc += sampler(x as f32 + 0.333, y as f32 - 0.333);
+                        acc += sampler(x as f32 - 0.333, y as f32 + 0.333);
+                        acc += sampler(x as f32 - 0.333, y as f32 - 0.333);
+                        acc += sampler(x as f32, y as f32 + 0.333);
+                        acc += sampler(x as f32, y as f32 - 0.333);
+                        acc += sampler(x as f32 + 0.333, y as f32);
+                        acc += sampler(x as f32 - 0.333, y as f32);
+
+                        data[i] = acc / acc.w;
+                    }
+                }
+            }
+        });
+    }
+}
+
+fn circle_around(x_range: &Range<usize>, y_range: &Range<usize>) -> ((f32, f32), f32) {
+    let x_min = x_range.start as f32 - 0.5;
+    let x_max = x_range.end as f32 - 0.5;
+    let y_min = y_range.start as f32 - 0.5;
+    let y_max = y_range.end as f32 - 0.5;
+
+    (
+        ((x_min + x_max) / 2., (y_min + y_max) / 2.),
+        (x_max - x_min).max(y_max - y_min) + 1.,
+    )
+}
+
+fn create_sampler_around(
+    tree: &RTree<GeomWithData<(f32, f32), Vec4>>,
+    center: (f32, f32),
+    radius: f32,
+) -> impl Fn(f32, f32) -> Vec4 + '_ {
+    fn dist_sq(a: (f32, f32), b: (f32, f32)) -> f32 {
+        let x = a.0 - b.0;
+        let y = a.1 - b.1;
+        x * x + y * y
+    }
+
+    let mut iter = tree.nearest_neighbor_iter(&center);
+    let closest = iter.next().unwrap();
+    let max_dist = dist_sq(center, *closest.geom()).sqrt() + radius * 2.;
+    let max_dist_sq = max_dist * max_dist;
+    let mut candidates = vec![closest];
+    candidates.extend(iter.take_while(|g| dist_sq(center, *g.geom()) <= max_dist_sq));
+    candidates.sort_unstable_by_key(|a| {
+        // we just need *a* key to sort elements by
+        // as long as that key is unique for each element, we don't care what it is
+        let (x, y) = *a.geom();
+        (x.to_bits(), y.to_bits())
+    });
+
+    move |x: f32, y: f32| {
+        let mut min = candidates[0].data;
+        let mut min_dist = dist_sq((x, y), *candidates[0].geom());
+
+        for g in candidates[1..].iter() {
+            let d = dist_sq((x, y), *g.geom());
+            if d < min_dist {
+                min_dist = d;
+                min = g.data;
+            }
+        }
+
+        min
     }
 }
 
@@ -358,5 +596,20 @@ mod tests {
             None,
         );
         original.snapshot("fill_alpha_color");
+    }
+
+    #[test]
+    fn fill_alpha_nearest() {
+        let mut original = read_flower_transparent();
+        super::fill_alpha(
+            &mut original,
+            0.15,
+            super::FillMode::Nearest {
+                min_radius: 50,
+                anti_aliasing: false,
+            },
+            None,
+        );
+        original.snapshot("fill_alpha_nearest");
     }
 }

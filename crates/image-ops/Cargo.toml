@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 glam.workspace = true
+rstar.workspace = true
 image-core.workspace = true
 
 [dev-dependencies]

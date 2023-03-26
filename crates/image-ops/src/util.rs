@@ -2,6 +2,11 @@ use std::ops::{Deref, DerefMut, Range};
 
 use image_core::{Image, Size};
 
+#[inline(always)]
+pub fn div_ceil(a: usize, b: usize) -> usize {
+    a / b + ((a % b != 0) as usize)
+}
+
 pub fn from_const<P: Clone>(size: Size, c: P, out: Option<Image<P>>) -> Image<P> {
     if let Some(mut out) = out {
         assert_eq!(out.size(), size);

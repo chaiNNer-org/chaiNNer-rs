@@ -19,10 +19,40 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| fragment_blur_alpha(&img_t, 20., 10, 0., None))
     });
 
+    c.bench_function("fill alpha texture", |b| {
+        b.iter(|| {
+            let mut i = img_t.clone();
+            fill_alpha(
+                &mut i,
+                0.15,
+                FillMode::Texture {
+                    iterations: 8,
+                    fragment_count: 5,
+                },
+                None,
+            )
+        })
+    });
+
     c.bench_function("fill alpha color", |b| {
         b.iter(|| {
             let mut i = img_t.clone();
             fill_alpha(&mut i, 0.15, FillMode::Color { iterations: 1000 }, None)
+        })
+    });
+
+    c.bench_function("fill alpha nearest", |b| {
+        b.iter(|| {
+            let mut i = img_t.clone();
+            fill_alpha(
+                &mut i,
+                0.15,
+                FillMode::Nearest {
+                    min_radius: u32::MAX,
+                    anti_aliasing: false,
+                },
+                None,
+            )
         })
     });
 }
