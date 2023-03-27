@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::util::{div_ceil, process_pairs};
 
 #[derive(Debug, Clone, PartialEq)]
