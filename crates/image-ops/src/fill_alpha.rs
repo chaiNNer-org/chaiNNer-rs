@@ -11,11 +11,11 @@ use crate::{
 };
 
 pub enum FillMode {
-    Texture {
+    Fragment {
         iterations: u32,
         fragment_count: u32,
     },
-    Color {
+    ExtendColor {
         iterations: u32,
     },
     Nearest {
@@ -33,11 +33,11 @@ pub fn fill_alpha(
     make_binary_alpha(image.data_mut(), threshold);
 
     match mode {
-        FillMode::Texture {
+        FillMode::Fragment {
             iterations,
             fragment_count,
         } => fill_alpha_fragment_blur(image, iterations, fragment_count, temp),
-        FillMode::Color { iterations } => fill_alpha_extend(image, iterations as usize),
+        FillMode::ExtendColor { iterations } => fill_alpha_extend(image, iterations as usize),
         FillMode::Nearest {
             min_radius: radius,
             anti_aliasing,
@@ -626,7 +626,7 @@ mod tests {
         super::fill_alpha(
             &mut original,
             0.15,
-            super::FillMode::Texture {
+            super::FillMode::Fragment {
                 iterations: 6,
                 fragment_count: 5,
             },
@@ -641,7 +641,7 @@ mod tests {
         super::fill_alpha(
             &mut original,
             0.15,
-            super::FillMode::Color { iterations: 64 },
+            super::FillMode::ExtendColor { iterations: 64 },
             None,
         );
         original.snapshot("fill_alpha_color");
