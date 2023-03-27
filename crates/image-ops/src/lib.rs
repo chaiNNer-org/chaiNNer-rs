@@ -1,6 +1,5 @@
 #![feature(slice_flatten, slice_as_chunks, iter_intersperse)]
 
-mod bits;
 pub mod blend;
 pub mod fill_alpha;
 pub mod fragment_blur;

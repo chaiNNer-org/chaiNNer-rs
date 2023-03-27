@@ -1,11 +1,6 @@
-use std::ops::{Deref, DerefMut, Range};
+use std::ops::{Deref, DerefMut};
 
 use image_core::{Image, Size};
-
-#[inline(always)]
-pub fn div_ceil(a: usize, b: usize) -> usize {
-    a / b + ((a % b != 0) as usize)
-}
 
 pub fn from_const<P: Clone>(size: Size, c: P, out: Option<Image<P>>) -> Image<P> {
     if let Some(mut out) = out {
@@ -73,31 +68,5 @@ pub fn from_image_cow<'a, P: Copy>(
         ImageCow::Borrowed(out)
     } else {
         ImageCow::Owned(img.clone())
-    }
-}
-
-pub fn move_range_i(range: &Range<usize>, offset: isize) -> Range<usize> {
-    Range {
-        start: (range.start as isize + offset) as usize,
-        end: (range.end as isize + offset) as usize,
-    }
-}
-pub fn move_range(range: &Range<usize>, offset: usize) -> Range<usize> {
-    Range {
-        start: range.start + offset,
-        end: range.end + offset,
-    }
-}
-
-pub fn process_pairs<'a, T: 'a + ?Sized>(
-    iter: impl IntoIterator<Item = &'a mut T>,
-    mut f: impl FnMut(&mut T, &mut T),
-) {
-    let mut iter = iter.into_iter();
-    if let Some(mut prev) = iter.next() {
-        for next in iter {
-            f(prev, next);
-            prev = next;
-        }
     }
 }
