@@ -242,7 +242,51 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
         }
     }
 
-    fn for_each_true(&self, mut f: impl FnMut(Range<usize>, Range<usize>, bool, usize)) {
+    fn for_each_true(&self, mut f: impl FnMut(Range<usize>, Range<usize>, bool)) {
+        if self.is_empty() {
+            return;
+        }
+
+        if self.width() == 1 {
+            let size = self.pixels();
+            let x_range = Self::cell_to_pixel_dimension(0, size.width);
+            for y in 0..self.height() {
+                let y_range = Self::cell_to_pixel_dimension(y, size.height);
+                if self.get(0, y) {
+                    f(x_range.clone(), y_range, false);
+                }
+            }
+        } else {
+            let inner_y = 1..(self.height() - 1);
+            let size = self.pixels();
+
+            let x_first = 0;
+            let x_last = self.width() - 1;
+
+            for y in 0..self.height() {
+                let y_range = Self::cell_to_pixel_dimension(y, size.height);
+                let is_inner_y = inner_y.contains(&y);
+
+                if self.get(x_first, y) {
+                    let x_range = Self::cell_to_pixel_dimension(x_first, size.width);
+                    f(x_range, y_range.clone(), false);
+                }
+
+                for x in 1..(self.width() - 1) {
+                    if self.get(x, y) {
+                        let x_range = Self::cell_to_pixel_dimension(x, size.width);
+                        f(x_range, y_range.clone(), is_inner_y);
+                    }
+                }
+
+                if self.get(x_last, y) {
+                    let x_range = Self::cell_to_pixel_dimension(x_last, size.width);
+                    f(x_range, y_range.clone(), false);
+                }
+            }
+        }
+    }
+    fn for_each_true_cell(&self, mut f: impl FnMut(Range<usize>, Range<usize>, bool, usize)) {
         if self.is_empty() {
             return;
         }
@@ -346,7 +390,7 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
             grid.and_any_index(|i| is_transparent(image, i));
         }
 
-        grid.for_each_true(|x_range, y_range, is_inner, _| {
+        grid.for_each_true(|x_range, y_range, is_inner| {
             if is_inner {
                 // inner cell
                 for y in y_range {
@@ -449,14 +493,14 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         std::iter::repeat_with(|| None).take(to_process.width() * to_process.height()),
     );
 
-    to_process.for_each_true(|x_range, y_range, _, cell_index| {
+    to_process.for_each_true_cell(|x_range, y_range, _, cell_index| {
         let (center, radius) = circle_around(&x_range, &y_range);
         let sampler = create_sampler_around(&tree, center, radius);
         samplers[cell_index] = Some(sampler);
     });
 
     // set pixels
-    to_process.for_each_true(|x_range, y_range, _, cell_index| {
+    to_process.for_each_true_cell(|x_range, y_range, _, cell_index| {
         let sampler = samplers[cell_index].as_ref().unwrap();
         for y in y_range {
             for x in x_range.clone() {
@@ -494,7 +538,7 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         }
 
         // resolve edges
-        to_process.for_each_true(|x_range, y_range, _, cell_index| {
+        to_process.for_each_true_cell(|x_range, y_range, _, cell_index| {
             let sampler = samplers[cell_index].as_ref().unwrap();
 
             for y in y_range {
