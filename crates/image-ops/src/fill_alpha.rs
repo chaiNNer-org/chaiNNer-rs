@@ -89,17 +89,12 @@ fn fill_alpha_fragment_blur(
 struct Grid<const CELL_SIZE: usize = 8> {
     lines: Box<[FixedBits]>,
     width: usize,
+    pixels: Size,
 }
 
 impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
     const fn cell_size(&self) -> usize {
         CELL_SIZE
-    }
-
-    fn get_grid_size(size: Size) -> (usize, usize) {
-        let grid_w = (size.width as f64 / CELL_SIZE as f64).ceil() as usize;
-        let grid_h = (size.height as f64 / CELL_SIZE as f64).ceil() as usize;
-        (grid_w, grid_h)
     }
 
     fn cell_to_pixel_dimension(cell: usize, image_size: usize) -> Range<usize> {
@@ -117,10 +112,14 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
         )
     }
 
-    fn new(width: usize, height: usize) -> Self {
+    fn new(pixels: Size) -> Self {
+        let width = div_ceil(pixels.width, CELL_SIZE);
+        let height = div_ceil(pixels.height, CELL_SIZE);
+
         Self {
             lines: vec![FixedBits::new(width); height].into_boxed_slice(),
             width,
+            pixels,
         }
     }
 
@@ -130,6 +129,12 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
     fn height(&self) -> usize {
         self.lines.len()
     }
+    fn is_empty(&self) -> bool {
+        self.width() == 0 || self.height() == 0
+    }
+    fn pixels(&self) -> Size {
+        self.pixels
+    }
 
     fn get(&self, x: usize, y: usize) -> bool {
         self.lines[y].get(x).unwrap()
@@ -138,14 +143,8 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
         self.lines[y].set(x, value)
     }
 
-    fn from_image_size(size: Size) -> Self {
-        let (w, h) = Self::get_grid_size(size);
-        Self::new(w, h)
-    }
-
-    fn fill_with_image_size(&mut self, size: Size, f: impl Fn(usize, usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(size));
-
+    fn fill_with_pixels(&mut self, f: impl Fn(usize, usize) -> bool) {
+        let size = self.pixels();
         self.fill_cells(|_, cx, cy| {
             let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
             for y in y_range {
@@ -158,9 +157,8 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
             false
         })
     }
-    fn fill_with_image_size_index(&mut self, size: Size, f: impl Fn(usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(size));
-
+    fn fill_with_pixels_index(&mut self, f: impl Fn(usize) -> bool) {
+        let size = self.pixels();
         self.fill_cells(|_, cx, cy| {
             let (x_range, y_range) = Self::cell_to_pixel((cx, cy), size);
             for y in y_range {
@@ -174,9 +172,8 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
         })
     }
 
-    fn and_any(&mut self, size: Size, f: impl Fn(usize, usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(size));
-
+    fn and_any(&mut self, f: impl Fn(usize, usize) -> bool) {
+        let size = self.pixels();
         self.fill_cells(|old, cx, cy| {
             if !old {
                 return false;
@@ -192,9 +189,8 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
             false
         })
     }
-    fn and_any_index(&mut self, size: Size, f: impl Fn(usize) -> bool) {
-        assert!((self.width(), self.height()) == Self::get_grid_size(size));
-
+    fn and_any_index(&mut self, f: impl Fn(usize) -> bool) {
+        let size = self.pixels();
         self.fill_cells(|old, cx, cy| {
             if !old {
                 return false;
@@ -246,13 +242,14 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
         }
     }
 
-    fn for_each_true(
-        &self,
-        size: Size,
-        mut f: impl FnMut(Range<usize>, Range<usize>, bool, usize),
-    ) {
+    fn for_each_true(&self, mut f: impl FnMut(Range<usize>, Range<usize>, bool, usize)) {
+        if self.is_empty() {
+            return;
+        }
+
         let inner_x = 1..(self.width() - 1);
         let inner_y = 1..(self.height() - 1);
+        let size = self.pixels();
 
         for y in 0..self.height() {
             let y_range = Self::cell_to_pixel_dimension(y, size.height);
@@ -262,7 +259,8 @@ impl<const CELL_SIZE: usize> Grid<CELL_SIZE> {
                     let x_range = Self::cell_to_pixel_dimension(x, size.width);
 
                     let is_inner = inner_x.contains(&x) && inner_y.contains(&y);
-                    f(x_range, y_range.clone(), is_inner, y * self.width() + x);
+                    let cell_index = y * self.width() + x;
+                    f(x_range, y_range.clone(), is_inner, cell_index);
                 }
             }
         }
@@ -334,21 +332,21 @@ fn fill_alpha_extend(image: &mut Image<Vec4>, iterations: usize) {
         return;
     }
 
-    let mut grid: Grid<8> = Grid::from_image_size(image.size());
-    grid.fill_with_image_size(image.size(), |x, y| is_to_fill(image, x, y));
+    let mut grid: Grid<8> = Grid::new(image.size());
+    grid.fill_with_pixels(|x, y| is_to_fill(image, x, y));
 
     let mut fills = Vec::with_capacity(image.width().max(image.height()) * 4);
 
     for i in 0..iterations {
         if i > 0 && i % grid.cell_size() == 0 {
-            grid.and_any(image.size(), |x, y| is_to_fill(image, x, y));
+            grid.and_any(|x, y| is_to_fill(image, x, y));
         }
         if i % grid.cell_size() == 1 {
             grid.expand_one();
-            grid.and_any_index(image.size(), |i| is_transparent(image, i));
+            grid.and_any_index(|i| is_transparent(image, i));
         }
 
-        grid.for_each_true(image.size(), |x_range, y_range, is_inner, _| {
+        grid.for_each_true(|x_range, y_range, is_inner, _| {
             if is_inner {
                 // inner cell
                 for y in y_range {
@@ -393,15 +391,15 @@ fn within_radius_grid<const N: usize>(
 ) -> Grid<N> {
     let size = Size::new(w, h);
 
-    let mut transparency_grid = Grid::from_image_size(size);
-    transparency_grid.fill_with_image_size_index(size, |i| transparent[i]);
+    let mut transparency_grid = Grid::new(size);
+    transparency_grid.fill_with_pixels_index(|i| transparent[i]);
 
     if radius as usize >= w || radius as usize >= h {
         return transparency_grid;
     }
 
-    let mut opaque_grid = Grid::from_image_size(size);
-    opaque_grid.fill_with_image_size_index(size, |i| !transparent[i]);
+    let mut opaque_grid = Grid::new(size);
+    opaque_grid.fill_with_pixels_index(|i| !transparent[i]);
 
     let iters = div_ceil(radius as usize, opaque_grid.cell_size());
     for _ in 0..iters {
@@ -451,14 +449,14 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         std::iter::repeat_with(|| None).take(to_process.width() * to_process.height()),
     );
 
-    to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+    to_process.for_each_true(|x_range, y_range, _, cell_index| {
         let (center, radius) = circle_around(&x_range, &y_range);
         let sampler = create_sampler_around(&tree, center, radius);
         samplers[cell_index] = Some(sampler);
     });
 
     // set pixels
-    to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+    to_process.for_each_true(|x_range, y_range, _, cell_index| {
         let sampler = samplers[cell_index].as_ref().unwrap();
         for y in y_range {
             for x in x_range.clone() {
@@ -496,7 +494,7 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         }
 
         // resolve edges
-        to_process.for_each_true(Size::new(w, h), |x_range, y_range, _, cell_index| {
+        to_process.for_each_true(|x_range, y_range, _, cell_index| {
             let sampler = samplers[cell_index].as_ref().unwrap();
 
             for y in y_range {
