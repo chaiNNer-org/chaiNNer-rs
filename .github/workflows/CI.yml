@@ -24,6 +24,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter=python3.9 -m crates/bindings/Cargo.toml
           manylinux: auto
+          rust-toolchain: nightly
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
