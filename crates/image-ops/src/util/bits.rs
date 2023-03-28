@@ -22,22 +22,12 @@ impl FixedBits {
     pub fn from_slice<T>(slice: &[T], f: impl Fn(&T) -> bool) -> Self {
         let mut bits = Self::new(slice.len());
 
-        let (full, remainder) = slice.as_chunks::<USIZE_BITS>();
-
-        for (i, s) in full.iter().enumerate() {
+        for (chunk, dest) in slice.chunks(USIZE_BITS).zip(bits.data.iter_mut()) {
             let mut v = 0;
-            for (j, b) in s.iter().enumerate() {
+            for (j, b) in chunk.iter().enumerate() {
                 v |= (f(b) as usize) << j;
             }
-            bits.data[i] = v;
-        }
-
-        if !remainder.is_empty() {
-            let mut v = 0;
-            for (j, b) in remainder.iter().enumerate() {
-                v |= (f(b) as usize) << j;
-            }
-            bits.data[bits.data.len() - 1] = v;
+            *dest = v;
         }
 
         bits

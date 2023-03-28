@@ -90,12 +90,12 @@ pub struct ShapeMismatch {
     pub expected: Vec<usize>,
 }
 
-pub trait FromNumpy<T> {
-    fn from_numpy(&self) -> Result<T, ShapeMismatch>;
+pub trait ToOwnedImage<T> {
+    fn to_owned_image(&self) -> Result<T, ShapeMismatch>;
 }
 
-impl<'py> FromNumpy<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
-    fn from_numpy(&self) -> Result<NDimImage, ShapeMismatch> {
+impl<'py> ToOwnedImage<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<NDimImage, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
         let data = match data {
             Cow::Borrowed(s) => s.to_vec(),
@@ -104,8 +104,8 @@ impl<'py> FromNumpy<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
         Ok(NDimImage::new(shape, data))
     }
 }
-impl<'py> FromNumpy<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
-    fn from_numpy(&self) -> Result<Image<f32>, ShapeMismatch> {
+impl<'py> ToOwnedImage<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<f32>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
         if shape.channels == 1 {
             let data = match data {
@@ -121,8 +121,8 @@ impl<'py> FromNumpy<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
         })
     }
 }
-impl<'py, const N: usize> FromNumpy<Image<[f32; N]>> for PyReadonlyArrayDyn<'py, f32> {
-    fn from_numpy(&self) -> Result<Image<[f32; N]>, ShapeMismatch> {
+impl<'py, const N: usize> ToOwnedImage<Image<[f32; N]>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<[f32; N]>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
 
         if shape.channels == N {
@@ -137,8 +137,8 @@ impl<'py, const N: usize> FromNumpy<Image<[f32; N]>> for PyReadonlyArrayDyn<'py,
         })
     }
 }
-impl<'py> FromNumpy<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
-    fn from_numpy(&self) -> Result<Image<Vec4>, ShapeMismatch> {
+impl<'py> ToOwnedImage<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<Vec4>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
 
         if shape.channels == 1 {
