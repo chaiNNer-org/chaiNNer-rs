@@ -261,7 +261,7 @@ fn fill_alpha_nearest(image: &mut Image<Vec4>, radius: u32, anti_aliasing: bool)
         return;
     }
 
-    let tree = rstar::RTree::bulk_load(points);
+    let tree = RTree::bulk_load(points);
     let mut samplers = Vec::from_iter(
         std::iter::repeat_with(|| None).take(to_process.width() * to_process.height()),
     );
