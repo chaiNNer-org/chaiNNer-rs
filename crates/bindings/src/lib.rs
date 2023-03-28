@@ -1,4 +1,4 @@
-#![feature(slice_flatten, slice_as_chunks, iter_intersperse)]
+#![feature(slice_flatten, slice_as_chunks)]
 
 mod convert;
 
@@ -25,8 +25,8 @@ macro_rules! load_image {
                     e.expected
                         .iter()
                         .map(|s| s.to_string())
-                        .intersperse(", ".to_owned())
-                        .collect::<String>(),
+                        .collect::<Vec<_>>()
+                        .join(", "),
                     e.actual
                 )))
             }
