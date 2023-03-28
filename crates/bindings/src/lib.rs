@@ -46,9 +46,9 @@ fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     /// Inverts the colors of a given image.
     #[pyfn(m)]
     fn invert<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<f32>) -> PyResult<&'py PyArray3<f32>> {
-        let foo = load_image!(img);
+        let img = load_image!(img);
         // let img = img.from_numpy().unwrap();
-        let result = py.allow_threads(move || nearest_neighbor::<Vec4>(&foo, foo.size().scale(4.)));
+        let result = py.allow_threads(move || nearest_neighbor::<Vec4>(&img, img.size().scale(4.)));
         let result = result.into_numpy().into_pyarray(py);
         Ok(result)
     }
@@ -57,10 +57,9 @@ fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn rainbow(py: Python<'_>) -> PyResult<&PyArray3<f32>> {
         let result = py.allow_threads(move || {
-            let rainbow = Image::from_fn(Size::new(256, 256), |x, y| {
+            Image::from_fn(Size::new(256, 256), |x, y| {
                 [x as f32 / 255., y as f32 / 255., 0.]
-            });
-            rainbow
+            })
         });
         let result = result.into_py(py);
         Ok(result)
