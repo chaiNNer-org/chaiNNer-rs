@@ -8,7 +8,7 @@ use image_ops::scale::nearest_neighbor;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::convert::{FromNumpy, IntoNumpy, IntoPy};
+use crate::convert::{ToOwnedImage, IntoNumpy, IntoPy};
 
 /// A macro for converting native numpy arrays to images.
 ///
@@ -16,7 +16,7 @@ use crate::convert::{FromNumpy, IntoNumpy, IntoPy};
 /// If the numpy array cannot be converted, an error will be early-returned.
 macro_rules! load_image {
     ($img:ident) => {
-        match $img.from_numpy() {
+        match $img.to_owned_image() {
             Ok(r) => r,
             Err(e) => {
                 return Err(PyValueError::new_err(format!(
