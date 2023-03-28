@@ -37,7 +37,12 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("fill alpha color", |b| {
         b.iter(|| {
             let mut i = img_t.clone();
-            fill_alpha(&mut i, 0.15, FillMode::ExtendColor { iterations: 1000 }, None)
+            fill_alpha(
+                &mut i,
+                0.15,
+                FillMode::ExtendColor { iterations: 1000 },
+                None,
+            )
         })
     });
 

@@ -8,7 +8,7 @@ use image_ops::scale::nearest_neighbor;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::convert::{ToOwnedImage, IntoNumpy, IntoPy};
+use crate::convert::{IntoNumpy, IntoPy, ToOwnedImage};
 
 /// A macro for converting native numpy arrays to images.
 ///
