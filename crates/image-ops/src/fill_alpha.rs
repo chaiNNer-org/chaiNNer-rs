@@ -360,12 +360,12 @@ fn create_sampler_around(
         x * x + y * y
     }
 
-    let mut iter = tree.nearest_neighbor_iter(&center);
-    let closest = iter.next().unwrap();
-    let max_dist = dist_sq(center, *closest.geom()).sqrt() + radius * 2.;
+    let closest = tree.nearest_neighbor(&center).unwrap();
+    let closest_dist = dist_sq(center, *closest.geom()).sqrt();
+    let max_dist = closest_dist + radius * 2.;
     let max_dist_sq = max_dist * max_dist;
-    let mut candidates = vec![closest];
-    candidates.extend(iter.take_while(|g| dist_sq(center, *g.geom()) <= max_dist_sq));
+
+    let mut candidates: Vec<_> = tree.locate_within_distance(center, max_dist_sq).collect();
     candidates.sort_unstable_by_key(|a| {
         // we just need *a* key to sort elements by
         // as long as that key is unique for each element, we don't care what it is
@@ -373,19 +373,26 @@ fn create_sampler_around(
         (x.to_bits(), y.to_bits())
     });
 
+    let candidates = candidates.into_boxed_slice();
+    let first = candidates[0];
+
     move |x: f32, y: f32| {
-        let mut min = candidates[0].data;
-        let mut min_dist = dist_sq((x, y), *candidates[0].geom());
+        if candidates.len() == 1 {
+            return first.data;
+        }
+
+        let mut min = first;
+        let mut min_dist = dist_sq((x, y), *first.geom());
 
         for g in candidates[1..].iter() {
             let d = dist_sq((x, y), *g.geom());
             if d < min_dist {
                 min_dist = d;
-                min = g.data;
+                min = g;
             }
         }
 
-        min
+        min.data
     }
 }
 
