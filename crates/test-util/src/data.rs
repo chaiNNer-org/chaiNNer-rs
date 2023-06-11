@@ -1,6 +1,6 @@
 use glam::{Vec3A, Vec4};
 use image::{io::Reader as ImageReader, DynamicImage};
-use image_core::{Image, Size};
+use image_core::{util::slice_as_chunks, Image, Size};
 
 macro_rules! read_image {
     ($name:literal) => {{
@@ -15,7 +15,7 @@ macro_rules! read_image {
 fn into_vec4(image: DynamicImage) -> Image<Vec4> {
     let image = image.into_rgba32f();
     let size = Size::new(image.width() as usize, image.height() as usize);
-    let (chunks, rest) = image.as_chunks::<4>();
+    let (chunks, rest) = slice_as_chunks::<_, 4>(&image);
     assert!(rest.is_empty());
     let data = chunks
         .iter()
@@ -26,7 +26,7 @@ fn into_vec4(image: DynamicImage) -> Image<Vec4> {
 fn into_vec3(image: DynamicImage) -> Image<Vec3A> {
     let image = image.into_rgb32f();
     let size = Size::new(image.width() as usize, image.height() as usize);
-    let (chunks, rest) = image.as_chunks::<3>();
+    let (chunks, rest) = slice_as_chunks::<_, 3>(&image);
     assert!(rest.is_empty());
     let data = chunks
         .iter()

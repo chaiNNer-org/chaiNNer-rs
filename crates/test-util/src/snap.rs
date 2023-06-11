@@ -6,7 +6,7 @@ use std::{
 
 use glam::{Vec3, Vec3A, Vec4};
 use image::RgbaImage;
-use image_core::Image;
+use image_core::{util::slice_as_chunks_mut, Image};
 
 trait ToRGBA {
     fn to_rgba(&self) -> [u8; 4];
@@ -75,7 +75,7 @@ impl<P: ToRGBA> ImageSnapshot for Image<P> {
 
 fn new_rgba<P: ToRGBA>(image: &Image<P>) -> RgbaImage {
     let mut rgba = RgbaImage::new(image.width() as u32, image.height() as u32);
-    let (chunks, rest) = rgba.as_chunks_mut::<4>();
+    let (chunks, rest) = slice_as_chunks_mut::<_, 4>(&mut rgba);
     assert!(rest.is_empty());
     let image_data = image.data();
     assert_eq!(chunks.len(), image_data.len());
