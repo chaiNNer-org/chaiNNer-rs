@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 authors = ["rust-analyzer team"]
 
 [workspace.dependencies]
-glam = { version = "0.23.0" }
+glam = { version = "0.24.0" }
 image = { version = "0.24.5" }
 rstar = "0.10.0"
 criterion = { version = "0.4" }
