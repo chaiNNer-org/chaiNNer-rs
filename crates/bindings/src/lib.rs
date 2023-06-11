@@ -4,7 +4,10 @@ mod convert;
 
 use glam::Vec4;
 use image_core::{Image, Size};
-use image_ops::scale::nearest_neighbor;
+use image_ops::{
+    fill_alpha::{fill_alpha, FillMode},
+    scale::nearest_neighbor,
+};
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
@@ -37,15 +40,12 @@ macro_rules! load_image {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
-    /// Formats the sum of two numbers as string.
+    /// Test function
     #[pyfn(m)]
-    fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-        Ok((a + b).to_string())
-    }
-
-    /// Inverts the colors of a given image.
-    #[pyfn(m)]
-    fn invert<'py>(py: Python<'py>, img: PyReadonlyArrayDyn<f32>) -> PyResult<&'py PyArray3<f32>> {
+    fn test_invert<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+    ) -> PyResult<&'py PyArray3<f32>> {
         let img = load_image!(img);
         // let img = img.from_numpy().unwrap();
         let result = py.allow_threads(move || nearest_neighbor::<Vec4>(&img, img.size().scale(4.)));
@@ -53,9 +53,9 @@ fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
         Ok(result)
     }
 
-    /// Inverts the colors of a given image.
+    /// Test function
     #[pyfn(m)]
-    fn rainbow(py: Python<'_>) -> PyResult<&PyArray3<f32>> {
+    fn test_rainbow(py: Python<'_>) -> PyResult<&PyArray3<f32>> {
         let result = py.allow_threads(move || {
             Image::from_fn(Size::new(256, 256), |x, y| {
                 [x as f32 / 255., y as f32 / 255., 0.]
@@ -63,6 +63,77 @@ fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
         });
         let result = result.into_py(py);
         Ok(result)
+    }
+
+    /// Fill the transparent pixels in the given image with nearby colors.
+    #[pyfn(m)]
+    fn fill_alpha_fragment_blur<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        threshold: f32,
+        iterations: u32,
+        fragment_count: u32,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let mut img = load_image!(img);
+        let result = py.allow_threads(|| {
+            fill_alpha(
+                &mut img,
+                threshold,
+                FillMode::Fragment {
+                    iterations,
+                    fragment_count,
+                },
+                None,
+            );
+            img.into_numpy()
+        });
+        Ok(result.into_pyarray(py))
+    }
+
+    /// Fill the transparent pixels in the given image with nearby colors.
+    #[pyfn(m)]
+    fn fill_alpha_extend_color<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        threshold: f32,
+        iterations: u32,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let mut img = load_image!(img);
+        let result = py.allow_threads(|| {
+            fill_alpha(
+                &mut img,
+                threshold,
+                FillMode::ExtendColor { iterations },
+                None,
+            );
+            img.into_numpy()
+        });
+        Ok(result.into_pyarray(py))
+    }
+
+    /// Fill the transparent pixels in the given image with nearby colors.
+    #[pyfn(m)]
+    fn fill_alpha_nearest_color<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        threshold: f32,
+        min_radius: u32,
+        anti_aliasing: bool,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let mut img = load_image!(img);
+        let result = py.allow_threads(|| {
+            fill_alpha(
+                &mut img,
+                threshold,
+                FillMode::Nearest {
+                    min_radius,
+                    anti_aliasing,
+                },
+                None,
+            );
+            img.into_numpy()
+        });
+        Ok(result.into_pyarray(py))
     }
 
     Ok(())
