@@ -18,5 +18,8 @@ dependencies = [
     "numpy>=1.16.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/chaiNNer-org/chaiNNer-rs"
+
 [tool.maturin]
 features = ["pyo3/extension-module"]
