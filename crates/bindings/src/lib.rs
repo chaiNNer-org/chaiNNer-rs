@@ -37,7 +37,7 @@ macro_rules! load_image {
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn chainner_rs(_py: Python, m: &PyModule) -> PyResult<()> {
+fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     /// Test function
     #[pyfn(m)]
     fn test_invert<'py>(

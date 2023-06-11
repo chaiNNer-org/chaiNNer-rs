@@ -9,7 +9,7 @@ if __name__ == "__main__":
     os.system("maturin build --release -m crates/bindings/Cargo.toml")
 
     # Uninstall old version
-    os.system("pip uninstall --disable-pip-version-check -y chainner_rs")
+    os.system("pip uninstall --disable-pip-version-check -y chainner_ext")
 
     # Install new version
     wheels = pathlib.Path("target/wheels").glob("*.whl")

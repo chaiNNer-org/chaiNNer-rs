@@ -8,7 +8,7 @@ license.workspace = true
 rust-version.workspace = true
 
 [lib]
-name = "chainner_rs"
+name = "chainner_ext"
 crate-type = ["cdylib"]
 
 [dependencies]

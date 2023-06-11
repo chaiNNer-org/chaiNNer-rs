@@ -3,7 +3,7 @@ requires = ["maturin>=0.14,<0.15"]
 build-backend = "maturin"
 
 [project]
-name = "chainner_rs"
+name = "chainner_ext"
 version = "0.0.0"
 description = "Rust implementation of functionality used in chaiNNer"
 requires-python = ">=3.7"
