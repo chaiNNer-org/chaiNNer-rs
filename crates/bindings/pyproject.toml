@@ -5,12 +5,13 @@ build-backend = "maturin"
 [project]
 name = "chainner_rs"
 version = "0.0.0"
-description = "Lovely Spam! Wonderful Spam!"
+description = "Rust implementation of functionality used in chaiNNer"
 requires-python = ">=3.7"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Image Processing"
 ]
 dependencies = [
     # https://github.com/PyO3/rust-numpy
