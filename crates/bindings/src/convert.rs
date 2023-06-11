@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 
 use glam::{Vec2, Vec3, Vec3A, Vec4};
-use image_core::{Image, NDimImage, Shape, Size};
+use image_core::{
+    util::{slice_as_chunks, vec_into_flattened},
+    Image, NDimImage, Shape, Size,
+};
 use numpy::{ndarray::Array3, IntoPyArray, Ix3, PyArray, PyReadonlyArrayDyn};
 use pyo3::Python;
 
@@ -49,7 +52,7 @@ impl IntoNumpy for Image<f32> {
 }
 impl<const N: usize> IntoNumpy for Image<[f32; N]> {
     fn into_numpy(self) -> Array3<f32> {
-        new_numpy_array(self.size(), N, self.take().into_flattened())
+        new_numpy_array(self.size(), N, vec_into_flattened(self.take()))
     }
 }
 
@@ -59,7 +62,7 @@ macro_rules! generate_into_numpy_fn {
             fn into_numpy(self) -> Array3<f32> {
                 let size = self.size();
                 let data: Vec<[f32; $n]> = self.take().into_iter().map($f).collect();
-                new_numpy_array(size, $n, data.into_flattened())
+                new_numpy_array(size, $n, vec_into_flattened(data))
             }
         }
     };
@@ -126,7 +129,7 @@ impl<'py, const N: usize> ToOwnedImage<Image<[f32; N]>> for PyReadonlyArrayDyn<'
         let (shape, data) = read_numpy(self);
 
         if shape.channels == N {
-            let (chunks, rest) = data.as_chunks();
+            let (chunks, rest) = slice_as_chunks(&data);
             assert!(rest.is_empty());
             return Ok(Image::new(shape.size(), chunks.to_vec()));
         }
@@ -146,7 +149,7 @@ impl<'py> ToOwnedImage<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
             return Ok(Image::new(shape.size(), data));
         }
         if shape.channels == 3 {
-            let (chunks, rest) = data.as_chunks::<3>();
+            let (chunks, rest) = slice_as_chunks::<_, 3>(&data);
             assert!(rest.is_empty());
             let data = chunks
                 .iter()
@@ -155,7 +158,7 @@ impl<'py> ToOwnedImage<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
             return Ok(Image::new(shape.size(), data));
         }
         if shape.channels == 4 {
-            let (chunks, rest) = data.as_chunks::<4>();
+            let (chunks, rest) = slice_as_chunks::<_, 4>(&data);
             assert!(rest.is_empty());
             let data = chunks
                 .iter()

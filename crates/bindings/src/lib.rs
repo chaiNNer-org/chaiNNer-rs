@@ -1,5 +1,3 @@
-#![feature(slice_flatten, slice_as_chunks)]
-
 mod convert;
 
 use glam::Vec4;
