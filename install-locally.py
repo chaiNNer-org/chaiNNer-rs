@@ -1,6 +1,10 @@
 import os
+import pathlib
 
 if __name__ == "__main__":
+    # Ensure maturin is installed
+    os.system("pip install --disable-pip-version-check maturin==0.14.14")
+
     # Build bindings
     os.system("maturin build --release -m crates/bindings/Cargo.toml")
 
@@ -8,5 +12,6 @@ if __name__ == "__main__":
     os.system("pip uninstall --disable-pip-version-check -y chainner_rs")
 
     # Install new version
-    wheels = os.listdir("target/wheels")
-    os.system(f"pip install --disable-pip-version-check target/wheels/{wheels[0]}")
+    wheels = pathlib.Path("target/wheels").glob("*.whl")
+    latest_wheel = max(wheels, key=lambda p: p.stat().st_mtime)
+    os.system(f"pip install --disable-pip-version-check {latest_wheel}")
