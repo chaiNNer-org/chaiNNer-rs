@@ -3,7 +3,7 @@ import pathlib
 
 if __name__ == "__main__":
     # Ensure maturin is installed
-    os.system("pip install --disable-pip-version-check maturin==0.14.14")
+    os.system("pip install --disable-pip-version-check maturin==1.1.0")
 
     # Build bindings
     os.system("maturin build --release -m crates/bindings/Cargo.toml")
