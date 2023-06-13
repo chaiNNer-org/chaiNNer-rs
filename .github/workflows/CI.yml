@@ -35,11 +35,6 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
           manylinux: auto
-      - name: Upload wheels
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
 
   windows:
     runs-on: windows-latest
@@ -57,11 +52,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
-      - name: Upload wheels
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
 
   macos:
     runs-on: macos-latest
@@ -78,43 +68,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
-      - name: Upload wheels
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-
-  sdist:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist --manifest-path crates/bindings/Cargo.toml
-      - name: Upload sdist
-        uses: actions/upload-artifact@v3
-        with:
-          name: wheels
-          path: dist
-
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    # if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux, windows, macos, sdist]
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: wheels
-      - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        with:
-          command: upload
-          args: --skip-existing --repository=testpypi *
 
   check:
     name: Check
