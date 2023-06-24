@@ -58,7 +58,7 @@ dependencies = [
  "image-ops",
  "numpy",
  "pyo3",
- "regex",
+ "regex-py",
 ]
 
 [[package]]
@@ -884,6 +884,13 @@ dependencies = [
  "aho-corasick",
  "memchr",
  "regex-syntax",
+]
+
+[[package]]
+name = "regex-py"
+version = "0.0.0"
+dependencies = [
+ "regex",
 ]
 
 [[package]]

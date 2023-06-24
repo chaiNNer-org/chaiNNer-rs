@@ -40,8 +40,8 @@ macro_rules! load_image {
 #[pymodule]
 fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<regex::RustRegex>()?;
-    m.add_class::<regex::RustRegexGroup>()?;
-    m.add_class::<regex::RustRegexMatch>()?;
+    m.add_class::<regex::MatchGroup>()?;
+    m.add_class::<regex::RegexMatch>()?;
 
     /// Test function
     #[pyfn(m)]
