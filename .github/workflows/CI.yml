@@ -102,6 +102,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
           manylinux: auto
+      - run: /usr/bin/sudo chown 1001:123 -R target
       - uses: actions-rs/cargo@v1
         with:
           command: test
