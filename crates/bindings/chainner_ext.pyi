@@ -4,6 +4,8 @@ from typing import Dict, List
 
 import numpy as np
 
+# pylint: disable=unused-argument,missing-class-docstring,missing-function-docstring
+
 def fill_alpha_fragment_blur(
     img: np.ndarray, threshold: float, iterations: int, fragment_count: int
 ) -> np.ndarray: ...
