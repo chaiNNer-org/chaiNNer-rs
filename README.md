@@ -1,5 +1,7 @@
 # Rust in chaiNNer
 
+[![PyPI](https://img.shields.io/pypi/v/chainner_ext)](https://pypi.org/project/chainner-ext/)
+
 This repository contains code to implement nodes for [chaiNNer](https://github.com/chaiNNer-org/chaiNNer) in Rust.
 
 The main goals of this project are as follows:
