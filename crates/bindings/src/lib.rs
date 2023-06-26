@@ -1,4 +1,5 @@
 mod convert;
+mod regex;
 
 use glam::Vec4;
 use image_core::{Image, Size};
@@ -38,6 +39,10 @@ macro_rules! load_image {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<regex::RustRegex>()?;
+    m.add_class::<regex::MatchGroup>()?;
+    m.add_class::<regex::RegexMatch>()?;
+
     /// Test function
     #[pyfn(m)]
     fn test_invert<'py>(
