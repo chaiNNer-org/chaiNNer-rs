@@ -31,6 +31,7 @@ This project consists of 4 crates:
 - `bindings` - Python bindings for the other crates.
 - `image-core` - The core interfaces used by the other crates.
 - `image-ops` - Implementations for image operations.
+- `regex-py` - Implementation for the regex API exposed by `bindings`.
 - `test-util` - Utilities for testing.
 
 ### Testing the bindings
