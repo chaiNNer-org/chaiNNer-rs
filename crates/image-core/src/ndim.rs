@@ -1,4 +1,5 @@
-use crate::Size;
+use crate::{util::vec_into_flattened, Image, Size};
+use glam::{Vec2, Vec3, Vec3A, Vec4};
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
 pub struct Shape {
@@ -88,3 +89,39 @@ impl NDimImage {
         &mut self.data[..]
     }
 }
+
+impl From<Image<f32>> for NDimImage {
+    fn from(value: Image<f32>) -> Self {
+        Self::new(Shape::from_size(value.size(), 1), value.take())
+    }
+}
+impl<const N: usize> From<Image<[f32; N]>> for NDimImage {
+    fn from(value: Image<[f32; N]>) -> Self {
+        Self::new(
+            Shape::from_size(value.size(), N),
+            vec_into_flattened(value.take()),
+        )
+    }
+}
+
+macro_rules! generate_into_ndim_fn {
+    ($for_type:ty, $n:literal, $f:expr) => {
+        impl From<Image<$for_type>> for NDimImage {
+            fn from(value: Image<$for_type>) -> Self {
+                let size = value.size();
+                let data: Vec<[f32; $n]> = value.take().into_iter().map($f).collect();
+                Self::new(Shape::from_size(size, $n), vec_into_flattened(data))
+            }
+        }
+    };
+}
+macro_rules! generate_into_ndim_array {
+    ($for_type:ty, $n:literal) => {
+        generate_into_ndim_fn!($for_type, $n, |v| v.into());
+    };
+}
+generate_into_ndim_array!(Vec4, 4);
+generate_into_ndim_array!(Vec3, 3);
+generate_into_ndim_array!(Vec3A, 3);
+generate_into_ndim_array!(Vec2, 2);
+generate_into_ndim_fn!((f32, f32), 2, |(x, y)| [x, y]);
