@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
-use glam::{Vec2, Vec3, Vec3A, Vec4};
-use image_core::{
-    util::{slice_as_chunks, vec_into_flattened},
-    Image, NDimImage, Shape, Size,
-};
+use glam::Vec4;
+use image_core::{util::slice_as_chunks, Image, NDimImage, Shape, Size};
 use numpy::{ndarray::Array3, IntoPyArray, Ix3, PyArray, PyReadonlyArrayDyn};
 use pyo3::Python;
 
@@ -40,43 +37,12 @@ pub trait IntoNumpy {
     fn into_numpy(self) -> Array3<f32>;
 }
 
-impl IntoNumpy for NDimImage {
+impl<T: Into<NDimImage>> IntoNumpy for T {
     fn into_numpy(self) -> Array3<f32> {
-        new_numpy_array(self.size(), self.channels(), self.take())
+        let image: NDimImage = self.into();
+        new_numpy_array(image.size(), image.channels(), image.take())
     }
 }
-impl IntoNumpy for Image<f32> {
-    fn into_numpy(self) -> Array3<f32> {
-        new_numpy_array(self.size(), 1, self.take())
-    }
-}
-impl<const N: usize> IntoNumpy for Image<[f32; N]> {
-    fn into_numpy(self) -> Array3<f32> {
-        new_numpy_array(self.size(), N, vec_into_flattened(self.take()))
-    }
-}
-
-macro_rules! generate_into_numpy_fn {
-    ($for_type:ty, $n:literal, $f:expr) => {
-        impl IntoNumpy for Image<$for_type> {
-            fn into_numpy(self) -> Array3<f32> {
-                let size = self.size();
-                let data: Vec<[f32; $n]> = self.take().into_iter().map($f).collect();
-                new_numpy_array(size, $n, vec_into_flattened(data))
-            }
-        }
-    };
-}
-macro_rules! generate_into_numpy_array {
-    ($for_type:ty, $n:literal) => {
-        generate_into_numpy_fn!($for_type, $n, |v| v.into());
-    };
-}
-generate_into_numpy_array!(Vec4, 4);
-generate_into_numpy_array!(Vec3, 3);
-generate_into_numpy_array!(Vec3A, 3);
-generate_into_numpy_array!(Vec2, 2);
-generate_into_numpy_fn!((f32, f32), 2, |(x, y)| [x, y]);
 
 pub trait IntoPy {
     fn into_py(self, py: Python<'_>) -> &PyArray<f32, Ix3>;

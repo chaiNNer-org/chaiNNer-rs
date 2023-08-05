@@ -426,6 +426,9 @@ dependencies = [
 [[package]]
 name = "image-core"
 version = "0.0.0"
+dependencies = [
+ "glam",
+]
 
 [[package]]
 name = "image-ops"
