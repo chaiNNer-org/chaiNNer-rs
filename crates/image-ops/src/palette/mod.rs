@@ -1,7 +1,7 @@
 use ahash::AHashSet;
 use image_core::{
     util::{slice_as_chunks, vec_into_flattened},
-    Image, NDimImage, NDimView, Shape, Size,
+    NDimImage, NDimView, Shape,
 };
 
 #[derive(Debug, Clone, PartialEq)]

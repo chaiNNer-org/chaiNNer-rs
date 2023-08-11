@@ -230,11 +230,11 @@ mod diffusion {
         Ok(result.into_pyarray(py))
     }
 
-    pub fn with_algorithm<'py>(
-        config: Config<'py>,
+    pub fn with_algorithm(
+        config: Config,
         quant: Quant,
         algorithm: impl image_ops::dither::DiffusionAlgorithm + Send,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    ) -> PyResult<&PyArray3<f32>> {
         let c = get_channels(&config.1);
         let err = Err(PyValueError::new_err(format!(
             "Argument '{}' does not have the right shape. Expected 1, 3, or 4 channels but found {}.",
