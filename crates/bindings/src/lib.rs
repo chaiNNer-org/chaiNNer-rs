@@ -1,4 +1,6 @@
 mod convert;
+mod dither;
+mod macros;
 mod regex;
 
 use glam::Vec4;
@@ -10,31 +12,7 @@ use image_ops::{
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::convert::{IntoNumpy, IntoPy, ToOwnedImage};
-
-/// A macro for converting native numpy arrays to images.
-///
-/// The image type will automatically be inferred based on usage.
-/// If the numpy array cannot be converted, an error will be early-returned.
-macro_rules! load_image {
-    ($img:ident) => {
-        match $img.to_owned_image() {
-            Ok(r) => r,
-            Err(e) => {
-                return Err(PyValueError::new_err(format!(
-                    "Argument '{}' does not have the right shape. Expected {} channel(s) but found {}.",
-                    stringify!($img),
-                    e.expected
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", "),
-                    e.actual
-                )))
-            }
-        }
-    };
-}
+use crate::convert::{IntoNumpy, IntoPy};
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -42,6 +20,14 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<regex::RustRegex>()?;
     m.add_class::<regex::MatchGroup>()?;
     m.add_class::<regex::RegexMatch>()?;
+
+    m.add_class::<dither::DiffusionAlgorithm>()?;
+    m.add_class::<dither::UniformQuantization>()?;
+    m.add_class::<dither::PaletteQuantization>()?;
+    m.add_wrapped(wrap_pyfunction!(dither::quantize))?;
+    m.add_wrapped(wrap_pyfunction!(dither::error_diffusion_dither))?;
+    m.add_wrapped(wrap_pyfunction!(dither::ordered_dither))?;
+    m.add_wrapped(wrap_pyfunction!(dither::riemersma_dither))?;
 
     /// Test function
     #[pyfn(m)]
