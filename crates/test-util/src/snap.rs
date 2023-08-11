@@ -6,7 +6,10 @@ use std::{
 
 use glam::{Vec3, Vec3A, Vec4};
 use image::RgbaImage;
-use image_core::{util::slice_as_chunks_mut, Image};
+use image_core::{
+    util::{slice_as_chunks, slice_as_chunks_mut},
+    Image, NDimImage,
+};
 
 trait ToRGBA {
     fn to_rgba(&self) -> [u8; 4];
@@ -70,6 +73,31 @@ pub trait ImageSnapshot {
 impl<P: ToRGBA> ImageSnapshot for Image<P> {
     fn snapshot(&self, snap_id: &str) {
         compare_snapshot(new_rgba(self), snap_id)
+    }
+}
+impl ImageSnapshot for NDimImage {
+    fn snapshot(&self, snap_id: &str) {
+        let rgba = match self.channels() {
+            1 => {
+                let data: Vec<f32> = self.data().to_vec();
+                new_rgba(&Image::new(self.size(), data))
+            }
+            3 => {
+                let (chucks, rest) = slice_as_chunks(self.data());
+                assert!(rest.is_empty());
+                let data: Vec<[f32; 3]> = chucks.to_vec();
+                new_rgba(&Image::new(self.size(), data))
+            }
+            4 => {
+                let (chucks, rest) = slice_as_chunks(self.data());
+                assert!(rest.is_empty());
+                let data: Vec<[f32; 4]> = chucks.to_vec();
+                new_rgba(&Image::new(self.size(), data))
+            }
+            _ => panic!("Unsupported channel count"),
+        };
+
+        compare_snapshot(rgba, snap_id)
     }
 }
 

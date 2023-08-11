@@ -1,12 +1,13 @@
 import os
 import pathlib
+import sys
 
 if __name__ == "__main__":
     # Ensure maturin is installed
     os.system("pip install --disable-pip-version-check maturin==1.1.0")
 
     # Build bindings
-    os.system("maturin build --release -m crates/bindings/Cargo.toml")
+    os.system("maturin build --release -m crates/bindings/Cargo.toml --interpreter " + sys.executable)
 
     # Uninstall old version
     os.system("pip uninstall --disable-pip-version-check -y chainner_ext")

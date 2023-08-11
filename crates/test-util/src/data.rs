@@ -41,6 +41,9 @@ pub fn read_lion() -> Image<Vec3A> {
 pub fn read_flower() -> Image<Vec3A> {
     into_vec3(read_image!("flower.png"))
 }
+pub fn read_flower_palette() -> Image<Vec3A> {
+    into_vec3(read_image!("flower-palette.png"))
+}
 pub fn read_portrait() -> Image<Vec3A> {
     into_vec3(read_image!("portrait.png"))
 }

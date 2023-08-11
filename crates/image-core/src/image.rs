@@ -102,6 +102,11 @@ impl<P> Image<P> {
         self.data.as_slice()
     }
 
+    /// The pixel data of a single row of the image.
+    pub fn row(&self, y: usize) -> &[P] {
+        &self.data()[y * self.width()..(y + 1) * self.width()]
+    }
+
     pub fn rows(&self) -> ChunksExact<'_, P> {
         self.data().chunks_exact(self.width())
     }

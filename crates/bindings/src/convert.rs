@@ -1,9 +1,18 @@
 use std::borrow::Cow;
 
-use glam::Vec4;
-use image_core::{util::slice_as_chunks, Image, NDimImage, Shape, Size};
+use glam::{Vec3, Vec3A, Vec4};
+use image_core::{AsPixels, Image, NDimImage, NDimView, Shape, ShapeMismatch, Size};
 use numpy::{ndarray::Array3, IntoPyArray, Ix3, PyArray, PyReadonlyArrayDyn};
 use pyo3::Python;
+
+pub fn get_channels(img: &PyReadonlyArrayDyn<f32>) -> usize {
+    let data = img.shape();
+    if data.len() >= 3 {
+        data[2]
+    } else {
+        1
+    }
+}
 
 fn py_to_shape(shape: &[usize]) -> Shape {
     if shape.len() == 2 {
@@ -53,12 +62,6 @@ impl<T: IntoNumpy> IntoPy for T {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ShapeMismatch {
-    pub actual: usize,
-    pub expected: Vec<usize>,
-}
-
 pub trait ToOwnedImage<T> {
     fn to_owned_image(&self) -> Result<T, ShapeMismatch>;
 }
@@ -76,66 +79,30 @@ impl<'py> ToOwnedImage<NDimImage> for PyReadonlyArrayDyn<'py, f32> {
 impl<'py> ToOwnedImage<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
     fn to_owned_image(&self) -> Result<Image<f32>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
-        if shape.channels == 1 {
-            let data = match data {
-                Cow::Borrowed(s) => s.to_vec(),
-                Cow::Owned(v) => v,
-            };
-            return Ok(Image::new(shape.size(), data));
-        }
-
-        Err(ShapeMismatch {
-            actual: shape.channels,
-            expected: vec![1],
-        })
+        NDimView::new(shape, &data).as_pixels()
     }
 }
 impl<'py, const N: usize> ToOwnedImage<Image<[f32; N]>> for PyReadonlyArrayDyn<'py, f32> {
     fn to_owned_image(&self) -> Result<Image<[f32; N]>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
-
-        if shape.channels == N {
-            let (chunks, rest) = slice_as_chunks(&data);
-            assert!(rest.is_empty());
-            return Ok(Image::new(shape.size(), chunks.to_vec()));
-        }
-
-        Err(ShapeMismatch {
-            actual: shape.channels,
-            expected: vec![N],
-        })
+        NDimView::new(shape, &data).as_pixels()
+    }
+}
+impl<'py> ToOwnedImage<Image<Vec3>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<Vec3>, ShapeMismatch> {
+        let (shape, data) = read_numpy(self);
+        NDimView::new(shape, &data).as_pixels()
+    }
+}
+impl<'py> ToOwnedImage<Image<Vec3A>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<Vec3A>, ShapeMismatch> {
+        let (shape, data) = read_numpy(self);
+        NDimView::new(shape, &data).as_pixels()
     }
 }
 impl<'py> ToOwnedImage<Image<Vec4>> for PyReadonlyArrayDyn<'py, f32> {
     fn to_owned_image(&self) -> Result<Image<Vec4>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
-
-        if shape.channels == 1 {
-            let data = data.iter().map(|g| Vec4::new(*g, *g, *g, 1.)).collect();
-            return Ok(Image::new(shape.size(), data));
-        }
-        if shape.channels == 3 {
-            let (chunks, rest) = slice_as_chunks::<_, 3>(&data);
-            assert!(rest.is_empty());
-            let data = chunks
-                .iter()
-                .map(|[x, y, z]| Vec4::new(*x, *y, *z, 1.))
-                .collect();
-            return Ok(Image::new(shape.size(), data));
-        }
-        if shape.channels == 4 {
-            let (chunks, rest) = slice_as_chunks::<_, 4>(&data);
-            assert!(rest.is_empty());
-            let data = chunks
-                .iter()
-                .map(|[x, y, z, w]| Vec4::new(*x, *y, *z, *w))
-                .collect();
-            return Ok(Image::new(shape.size(), data));
-        }
-
-        Err(ShapeMismatch {
-            actual: shape.channels,
-            expected: vec![1, 3, 4],
-        })
+        NDimView::new(shape, &data).as_pixels()
     }
 }

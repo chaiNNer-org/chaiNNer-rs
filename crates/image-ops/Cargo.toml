@@ -8,8 +8,10 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+zhang_hilbert = "0.1.1"
 glam.workspace = true
 rstar.workspace = true
+ahash.workspace = true
 image-core.workspace = true
 
 [dev-dependencies]
