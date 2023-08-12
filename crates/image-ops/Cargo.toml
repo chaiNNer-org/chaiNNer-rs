@@ -9,9 +9,9 @@ rust-version.workspace = true
 
 [dependencies]
 zhang_hilbert = "0.1.1"
+rstar = "0.11.0"
+ahash = "0.8.3"
 glam.workspace = true
-rstar.workspace = true
-ahash.workspace = true
 image-core.workspace = true
 
 [dev-dependencies]
