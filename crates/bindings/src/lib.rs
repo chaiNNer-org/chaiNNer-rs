@@ -1,3 +1,4 @@
+mod clipboard;
 mod convert;
 mod dither;
 mod macros;
@@ -20,6 +21,8 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<regex::RustRegex>()?;
     m.add_class::<regex::MatchGroup>()?;
     m.add_class::<regex::RegexMatch>()?;
+
+    m.add_class::<clipboard::Clipboard>()?;
 
     m.add_class::<dither::DiffusionAlgorithm>()?;
     m.add_class::<dither::UniformQuantization>()?;

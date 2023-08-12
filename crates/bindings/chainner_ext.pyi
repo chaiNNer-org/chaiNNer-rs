@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import numpy as np
 
@@ -59,6 +59,8 @@ def riemersma_dither(
     decay_ratio: float,
 ) -> np.ndarray: ...
 
+# Regex
+
 class RustRegex:
     @property
     def pattern(self) -> str: ...
@@ -89,3 +91,11 @@ class MatchGroup:
     def end(self) -> int: ...
     @property
     def len(self) -> int: ...
+
+# Clipboard
+
+class Clipboard:
+    def write_text(self, text: str) -> None: ...
+    def write_image(self, image: np.ndarray, pixel_format: Literal["RGB", "BGR"]) -> None: ...
+    @staticmethod
+    def create_instance() -> Clipboard: ...
