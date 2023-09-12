@@ -53,3 +53,6 @@ pub fn read_flower_transparent() -> Image<Vec4> {
 pub fn read_abstract_transparent() -> Image<Vec4> {
     into_vec4(read_image!("abstract-transparent.png"))
 }
+pub fn read_at_sdf() -> Image<Vec3A> {
+    into_vec3(read_image!("at-sdf.png"))
+}
