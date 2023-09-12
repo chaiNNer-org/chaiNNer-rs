@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use image_core::{NDimImage, Shape};
 use image_ops::{
@@ -5,6 +7,7 @@ use image_ops::{
     fill_alpha::{fill_alpha, FillMode},
     fragment_blur::{fragment_blur, fragment_blur_alpha},
     palette::extract_unique_ndim,
+    threshold::binary_threshold,
 };
 use test_util::data::{read_flower, read_flower_palette, read_flower_transparent, read_lion};
 
@@ -111,6 +114,13 @@ fn criterion_benchmark(c: &mut Criterion) {
         let quant = ColorPalette::new(RGB, palette.row(0).iter().copied(), BoundError);
         b.iter(|| {
             error_diffusion_dither(&mut img, FloydSteinberg, &quant);
+        })
+    });
+
+    c.bench_function("threshold", |b| {
+        let img = img_lion_ndim.view();
+        b.iter(|| {
+            binary_threshold(img, 0.5, true);
         })
     });
 }

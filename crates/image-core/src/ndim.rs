@@ -97,7 +97,7 @@ impl NDimImage {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct NDimView<'a> {
     data: &'a [f32],
     shape: Shape,

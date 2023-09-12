@@ -5,7 +5,7 @@ mod macros;
 mod regex;
 
 use glam::Vec4;
-use image_core::{Image, Size};
+use image_core::{Image, NDimImage, Size};
 use image_ops::{
     fill_alpha::{fill_alpha, FillMode},
     scale::nearest_neighbor,
@@ -124,6 +124,22 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
                 None,
             );
             img.into_numpy()
+        });
+        Ok(result.into_pyarray(py))
+    }
+
+    /// Fill the transparent pixels in the given image with nearby colors.
+    #[pyfn(m)]
+    fn binary_threshold<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        threshold: f32,
+        anti_aliasing: bool,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let img: NDimImage = load_image!(img);
+        let result = py.allow_threads(|| {
+            image_ops::threshold::binary_threshold(img.view(), threshold, anti_aliasing)
+                .into_numpy()
         });
         Ok(result.into_pyarray(py))
     }

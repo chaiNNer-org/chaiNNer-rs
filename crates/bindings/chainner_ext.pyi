@@ -16,6 +16,9 @@ def fill_alpha_extend_color(
 def fill_alpha_nearest_color(
     img: np.ndarray, threshold: float, min_radius: int, anti_aliasing: bool
 ) -> np.ndarray: ...
+def binary_threshold(
+    img: np.ndarray, threshold: float, anti_aliasing: bool
+) -> np.ndarray: ...
 
 class UniformQuantization:
     @property
@@ -96,6 +99,8 @@ class MatchGroup:
 
 class Clipboard:
     def write_text(self, text: str) -> None: ...
-    def write_image(self, image: np.ndarray, pixel_format: Literal["RGB", "BGR"]) -> None: ...
+    def write_image(
+        self, image: np.ndarray, pixel_format: Literal["RGB", "BGR"]
+    ) -> None: ...
     @staticmethod
     def create_instance() -> Clipboard: ...
