@@ -14,24 +14,9 @@ pub fn binary_threshold(img: NDimView, threshold: f32, anti_aliasing: bool) -> N
 
     // if anti-aliasing is enabled, we need to do some extra work
     if anti_aliasing {
-        match img.channels() {
-            1 => binary_threshold_aa(img, &mut dest, threshold, 0, 1),
-            2 => {
-                binary_threshold_aa(img, &mut dest, threshold, 0, 2);
-                binary_threshold_aa(img, &mut dest, threshold, 1, 2);
-            }
-            3 => {
-                binary_threshold_aa(img, &mut dest, threshold, 0, 3);
-                binary_threshold_aa(img, &mut dest, threshold, 1, 3);
-                binary_threshold_aa(img, &mut dest, threshold, 2, 3);
-            }
-            4 => {
-                binary_threshold_aa(img, &mut dest, threshold, 0, 4);
-                binary_threshold_aa(img, &mut dest, threshold, 1, 4);
-                binary_threshold_aa(img, &mut dest, threshold, 2, 4);
-                binary_threshold_aa(img, &mut dest, threshold, 3, 4);
-            }
-            _ => todo!("Implement anti-aliasing for images with more than 4 channels"),
+        let c = img.channels();
+        for i in 0..c {
+            binary_threshold_aa(img, &mut dest, threshold, i, c);
         }
     }
 
