@@ -2,34 +2,34 @@ use image_core::{NDimImage, NDimView};
 
 use crate::util::move_range;
 
-pub fn binary_threshold(img: NDimView, anti_aliasing: bool) -> NDimImage {
+pub fn binary_threshold(img: NDimView, threshold: f32, anti_aliasing: bool) -> NDimImage {
     // start with a normal threshold
     let mut dest = NDimImage::new(
         img.shape(),
         img.data()
             .iter()
-            .map(|&p| if p >= 0.5 { 1.0 } else { 0.0 })
+            .map(|&p| if p > threshold { 1.0 } else { 0.0 })
             .collect(),
     );
 
     // if anti-aliasing is enabled, we need to do some extra work
     if anti_aliasing {
         match img.channels() {
-            1 => binary_threshold_aa(img, &mut dest, 0, 1),
+            1 => binary_threshold_aa(img, &mut dest, threshold, 0, 1),
             2 => {
-                binary_threshold_aa(img, &mut dest, 0, 2);
-                binary_threshold_aa(img, &mut dest, 1, 2);
+                binary_threshold_aa(img, &mut dest, threshold, 0, 2);
+                binary_threshold_aa(img, &mut dest, threshold, 1, 2);
             }
             3 => {
-                binary_threshold_aa(img, &mut dest, 0, 3);
-                binary_threshold_aa(img, &mut dest, 1, 3);
-                binary_threshold_aa(img, &mut dest, 2, 3);
+                binary_threshold_aa(img, &mut dest, threshold, 0, 3);
+                binary_threshold_aa(img, &mut dest, threshold, 1, 3);
+                binary_threshold_aa(img, &mut dest, threshold, 2, 3);
             }
             4 => {
-                binary_threshold_aa(img, &mut dest, 0, 4);
-                binary_threshold_aa(img, &mut dest, 1, 4);
-                binary_threshold_aa(img, &mut dest, 2, 4);
-                binary_threshold_aa(img, &mut dest, 3, 4);
+                binary_threshold_aa(img, &mut dest, threshold, 0, 4);
+                binary_threshold_aa(img, &mut dest, threshold, 1, 4);
+                binary_threshold_aa(img, &mut dest, threshold, 2, 4);
+                binary_threshold_aa(img, &mut dest, threshold, 3, 4);
             }
             _ => todo!("Implement anti-aliasing for images with more than 4 channels"),
         }
@@ -38,7 +38,13 @@ pub fn binary_threshold(img: NDimView, anti_aliasing: bool) -> NDimImage {
     dest
 }
 
-fn binary_threshold_aa(img: NDimView, dest: &mut NDimImage, offset: usize, stride: usize) {
+fn binary_threshold_aa(
+    img: NDimView,
+    dest: &mut NDimImage,
+    threshold: f32,
+    offset: usize,
+    stride: usize,
+) {
     let w = img.width();
     let h = img.height();
 
@@ -130,8 +136,10 @@ fn binary_threshold_aa(img: NDimView, dest: &mut NDimImage, offset: usize, strid
             }
             .get_first_quadrant();
 
-            let sum_area =
-                q_tl.get_area(0.5) + q_tr.get_area(0.5) + q_bl.get_area(0.5) + q_br.get_area(0.5);
+            let sum_area = q_tl.get_area(threshold)
+                + q_tr.get_area(threshold)
+                + q_bl.get_area(threshold)
+                + q_br.get_area(threshold);
             data[(y * w + x) * stride + offset] = sum_area * 0.25;
         }
     }
@@ -213,18 +221,18 @@ impl BiLinear {
             let x0 = y * c + d - threshold;
             let x1 = m + x0;
 
-            if x0 < 0.0 && x1 < 0.0 {
+            if x0 <= 0.0 && x1 <= 0.0 {
                 // the strip is entirely below the threshold
                 return 0.0;
             }
-            if x0 >= 0.0 && x1 >= 0.0 {
+            if x0 > 0.0 && x1 > 0.0 {
                 // the strip is entirely above the threshold
                 return 1.0;
             }
 
             // the strip is partially above the threshold
             let x = -x0 / m;
-            if x0 >= 0.0 {
+            if x0 > 0.0 {
                 x
             } else {
                 1.0 - x
@@ -259,22 +267,22 @@ mod tests {
     #[test]
     fn binary_threshold() {
         let original: NDimImage = read_flower().into();
-        let result = super::binary_threshold(original.view(), false);
+        let result = super::binary_threshold(original.view(), 0.5, false);
         result.snapshot("threshold_flower");
 
         let original: NDimImage = read_at_sdf().into();
-        let result = super::binary_threshold(original.view(), false);
+        let result = super::binary_threshold(original.view(), 0.5, false);
         result.snapshot("threshold_at_sdf");
     }
 
     #[test]
     fn binary_threshold_aa() {
         let original: NDimImage = read_flower().into();
-        let result = super::binary_threshold(original.view(), true);
+        let result = super::binary_threshold(original.view(), 0.5, true);
         result.snapshot("threshold_aa_flower");
 
         let original: NDimImage = read_at_sdf().into();
-        let result = super::binary_threshold(original.view(), true);
+        let result = super::binary_threshold(original.view(), 0.5, true);
         result.snapshot("threshold_aa_at_sdf");
     }
 

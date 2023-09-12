@@ -120,7 +120,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("threshold", |b| {
         let img = img_lion_ndim.view();
         b.iter(|| {
-            binary_threshold(img, true);
+            binary_threshold(img, 0.5, true);
         })
     });
 }
