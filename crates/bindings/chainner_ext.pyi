@@ -19,6 +19,9 @@ def fill_alpha_nearest_color(
 def binary_threshold(
     img: np.ndarray, threshold: float, anti_aliasing: bool
 ) -> np.ndarray: ...
+def esdf(
+    img: np.ndarray, radius: float, cutoff: float, pre_process: bool, post_process: bool
+) -> np.ndarray: ...
 
 class UniformQuantization:
     @property

@@ -4,12 +4,15 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use image_core::{NDimImage, Shape};
 use image_ops::{
     dither::*,
+    esdt::esdf,
     fill_alpha::{fill_alpha, FillMode},
     fragment_blur::{fragment_blur, fragment_blur_alpha},
     palette::extract_unique_ndim,
     threshold::binary_threshold,
 };
-use test_util::data::{read_flower, read_flower_palette, read_flower_transparent, read_lion};
+use test_util::data::{
+    read_at, read_flower, read_flower_palette, read_flower_transparent, read_lion,
+};
 
 fn criterion_benchmark(c: &mut Criterion) {
     let img = black_box(read_flower());
@@ -20,6 +23,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         Shape::from_size(img_lion.size(), 1),
         img_lion.data().iter().map(|p| p.x).collect(),
     );
+    let img_at = read_at();
 
     c.bench_function("fragment rgb r=20 c=5", |b| {
         b.iter(|| fragment_blur(&img, 20., 5, 0., None))
@@ -121,6 +125,12 @@ fn criterion_benchmark(c: &mut Criterion) {
         let img = img_lion_ndim.view();
         b.iter(|| {
             binary_threshold(img, 0.5, true);
+        })
+    });
+
+    c.bench_function("esdt", |b| {
+        b.iter(|| {
+            esdf(&img_at, 200.0, 0.25, false, false);
         })
     });
 }

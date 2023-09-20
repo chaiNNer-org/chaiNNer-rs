@@ -34,6 +34,14 @@ fn into_vec3(image: DynamicImage) -> Image<Vec3A> {
         .collect();
     Image::new(size, data)
 }
+fn into_scalar(image: DynamicImage) -> Image<f32> {
+    let image = image.into_rgb32f();
+    let size = Size::new(image.width() as usize, image.height() as usize);
+    let (chunks, rest) = slice_as_chunks::<_, 3>(&image);
+    assert!(rest.is_empty());
+    let data = chunks.iter().map(|[r, _, _]| *r).collect();
+    Image::new(size, data)
+}
 
 pub fn read_lion() -> Image<Vec3A> {
     into_vec3(read_image!("lion.png"))
@@ -55,4 +63,7 @@ pub fn read_abstract_transparent() -> Image<Vec4> {
 }
 pub fn read_at_sdf() -> Image<Vec3A> {
     into_vec3(read_image!("at-sdf.png"))
+}
+pub fn read_at() -> Image<f32> {
+    into_scalar(read_image!("at.png"))
 }
