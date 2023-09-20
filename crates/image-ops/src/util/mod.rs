@@ -1,9 +1,11 @@
+mod bilinear;
 mod bits;
 mod grid;
 mod image;
 
 use std::ops::Range;
 
+pub use bilinear::*;
 pub use bits::FixedBits;
 pub use grid::Grid;
 pub use image::*;
