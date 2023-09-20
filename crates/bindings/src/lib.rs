@@ -144,5 +144,22 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         Ok(result.into_pyarray(py))
     }
 
+    /// Fill the transparent pixels in the given image with nearby colors.
+    #[pyfn(m)]
+    fn esdf<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        radius: f32,
+        cutoff: f32,
+        pre_process: bool,
+        post_process: bool,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let img: Image<f32> = load_image!(img);
+        let result = py.allow_threads(|| {
+            image_ops::esdt::esdf(&img, radius, cutoff, pre_process, post_process).into_numpy()
+        });
+        Ok(result.into_pyarray(py))
+    }
+
     Ok(())
 }
