@@ -29,7 +29,6 @@ pub fn esdf(
         &mut stage.b,
         &mut stage.t,
         &mut stage.v,
-        0,
     );
     esdt(
         &mut stage.inner,
@@ -42,7 +41,6 @@ pub fn esdf(
         &mut stage.b,
         &mut stage.t,
         &mut stage.v,
-        0,
     );
     if post_process {
         relax_subpixel_offsets(&mut stage, w, h);
@@ -538,17 +536,12 @@ fn esdt(
     b: &mut [f32],
     t: &mut [f32],
     v: &mut [usize],
-    half: u8,
 ) {
-    if half != 1 {
-        for x in 0..w {
-            esdt1d(mask, ys, xs, x, w, h, f, z, b, t, v);
-        }
+    for x in 0..w {
+        esdt1d(mask, ys, xs, x, w, h, f, z, b, t, v);
     }
-    if half != 2 {
-        for y in 0..h {
-            esdt1d(mask, xs, ys, y * w, 1, w, f, z, b, t, v);
-        }
+    for y in 0..h {
+        esdt1d(mask, xs, ys, y * w, 1, w, f, z, b, t, v);
     }
 }
 
