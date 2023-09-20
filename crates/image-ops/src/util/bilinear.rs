@@ -423,8 +423,7 @@ impl BiLinear {
                 // case b
                 //
                 // Now we can finally use the area(n=x1,m=x2)
-                ((b * c - a * d) * (f32::ln((a * x2 + c).abs()) - f32::ln((a * x1 + c).abs()))
-                    - a * b * (x2 - x1))
+                ((b * c - a * d) * f32::ln((a * x2 + c) / (a * x1 + c)) - a * b * (x2 - x1))
                     / (a * a)
             };
 
