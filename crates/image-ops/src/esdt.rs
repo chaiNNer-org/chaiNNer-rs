@@ -251,23 +251,23 @@ fn paint_subpixel_offsets(stage: &mut SDFStage, img: &Image<f32>, relax: bool) {
                 let b = get_data(x, y_p1);
 
                 if is_black(l) && x > 0 {
-                    xo[j - 1] = 0.5;
+                    xo[j - 1] = 0.4999;
                     outer[j - 1] = 0.0;
                     inner[j - 1] = 0.0;
                 }
                 if is_black(r) && x < w - 1 {
-                    xo[j + 1] = -0.5;
+                    xo[j + 1] = -0.4999;
                     outer[j + 1] = 0.0;
                     inner[j + 1] = 0.0;
                 }
 
                 if is_black(t) && y > 0 {
-                    yo[j - w] = 0.5;
+                    yo[j - w] = 0.4999;
                     outer[j - w] = 0.0;
                     inner[j - w] = 0.0;
                 }
                 if is_black(b) && y < h - 1 {
-                    yo[j + w] = -0.5;
+                    yo[j + w] = -0.4999;
                     outer[j + w] = 0.0;
                     inner[j + w] = 0.0;
                 }
@@ -648,7 +648,7 @@ fn esdt1d(
 #[cfg(test)]
 mod tests {
     use test_util::{
-        data::{read_at, read_flower},
+        data::{read_at, read_binary_alpha, read_checker, read_flower},
         snap::ImageSnapshot,
     };
 
@@ -662,5 +662,17 @@ mod tests {
     fn flower() {
         let original = read_flower().map(|p| p.x);
         super::esdf(&original, 10.0, 0.25, false, false).snapshot("flower_esdf");
+    }
+
+    #[test]
+    fn checker() {
+        let original = read_checker();
+        super::esdf(&original, 10.0, 0.5, false, false).snapshot("checker_esdf");
+    }
+
+    #[test]
+    fn binary_alpha() {
+        let original = read_binary_alpha();
+        super::esdf(&original, 20.0, 0.5, false, false).snapshot("binary_alpha_esdf");
     }
 }

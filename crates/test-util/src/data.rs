@@ -67,3 +67,9 @@ pub fn read_at_sdf() -> Image<Vec3A> {
 pub fn read_at() -> Image<f32> {
     into_scalar(read_image!("at.png"))
 }
+pub fn read_checker() -> Image<f32> {
+    into_scalar(read_image!("checker.png"))
+}
+pub fn read_binary_alpha() -> Image<f32> {
+    into_scalar(read_image!("binary-alpha.png"))
+}
