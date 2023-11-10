@@ -22,6 +22,7 @@ def binary_threshold(
 def esdf(
     img: np.ndarray, radius: float, cutoff: float, pre_process: bool, post_process: bool
 ) -> np.ndarray: ...
+def pixel_art_upscale(img: np.ndarray, algorithm: str, scale: int) -> np.ndarray: ...
 
 class UniformQuantization:
     @property

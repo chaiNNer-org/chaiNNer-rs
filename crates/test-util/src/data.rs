@@ -73,3 +73,6 @@ pub fn read_checker() -> Image<f32> {
 pub fn read_binary_alpha() -> Image<f32> {
     into_scalar(read_image!("binary-alpha.png"))
 }
+pub fn read_nes_smb() -> Image<Vec3A> {
+    into_vec3(read_image!("nes-smb.png"))
+}
