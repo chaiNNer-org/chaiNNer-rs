@@ -28,12 +28,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.9'
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --interpreter=python3.12 --manifest-path crates/bindings/Cargo.toml
+          args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
           manylinux: auto
 
   windows:
@@ -45,13 +45,13 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.9'
           architecture: ${{ matrix.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --interpreter=python3.12 --manifest-path crates/bindings/Cargo.toml
+          args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
 
   macos:
     runs-on: macos-latest
@@ -62,12 +62,12 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.9'
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist --interpreter=python3.12 --manifest-path crates/bindings/Cargo.toml
+          args: --release --out dist --interpreter=python3.9 --manifest-path crates/bindings/Cargo.toml
 
   check:
     name: Check
