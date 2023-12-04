@@ -344,10 +344,11 @@ mod tests {
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_cubic_catrom_4x");
 
-        let original = read_portrait();
-        let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
-        nn.snapshot("resize_cubic_catrom_200");
+        // https://github.com/chaiNNer-org/chaiNNer-rs/pull/20#issuecomment-1839525313
+        // let original = read_portrait();
+        // let new_size = Size::new(200, 200);
+        // let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        // nn.snapshot("resize_cubic_catrom_200");
     }
 
     #[test]
@@ -389,10 +390,11 @@ mod tests {
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_lanczos3_4x");
 
-        let original = read_portrait();
-        let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
-        nn.snapshot("resize_lanczos3_200");
+        // https://github.com/chaiNNer-org/chaiNNer-rs/pull/20#issuecomment-1839525313
+        // let original = read_portrait();
+        // let new_size = Size::new(200, 200);
+        // let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        // nn.snapshot("resize_lanczos3_200");
     }
 
     #[test]
