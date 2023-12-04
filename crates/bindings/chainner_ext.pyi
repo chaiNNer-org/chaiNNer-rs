@@ -66,6 +66,22 @@ def riemersma_dither(
     decay_ratio: float,
 ) -> np.ndarray: ...
 
+class ResizeFilter(Enum):
+    Nearest = 0
+    Linear = 1
+    CubicCatrom = 2
+    CubicMitchell = 3
+    CubicBSpline = 6
+    Lanczos = 4
+    Gauss = 5
+
+def resize(
+    img: np.ndarray,
+    new_size: tuple[int, int],
+    filter: ResizeFilter,
+    gamma_correction: bool,
+) -> np.ndarray: ...
+
 # Regex
 
 class RustRegex:

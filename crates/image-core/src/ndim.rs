@@ -1,7 +1,4 @@
-use crate::{
-    util::{slice_as_chunks, vec_into_flattened},
-    Image, Size,
-};
+use crate::{pixel::FlattenData, util::slice_as_chunks, Image, Size};
 use glam::{Vec2, Vec3, Vec3A, Vec4};
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy, Debug)]
@@ -132,41 +129,14 @@ impl<'a> NDimView<'a> {
 
 // Conversions from Image to NDimImage
 
-impl From<Image<f32>> for NDimImage {
-    fn from(value: Image<f32>) -> Self {
-        Self::new(Shape::from_size(value.size(), 1), value.take())
-    }
-}
-impl<const N: usize> From<Image<[f32; N]>> for NDimImage {
-    fn from(value: Image<[f32; N]>) -> Self {
+impl<P: FlattenData> From<Image<P>> for NDimImage {
+    fn from(value: Image<P>) -> Self {
         Self::new(
-            Shape::from_size(value.size(), N),
-            vec_into_flattened(value.take()),
+            Shape::from_size(value.size(), P::COMPONENTS),
+            P::flatten_data(value.take()),
         )
     }
 }
-
-macro_rules! generate_into_ndim_fn {
-    ($for_type:ty, $n:literal, $f:expr) => {
-        impl From<Image<$for_type>> for NDimImage {
-            fn from(value: Image<$for_type>) -> Self {
-                let size = value.size();
-                let data: Vec<[f32; $n]> = value.take().into_iter().map($f).collect();
-                Self::new(Shape::from_size(size, $n), vec_into_flattened(data))
-            }
-        }
-    };
-}
-macro_rules! generate_into_ndim_array {
-    ($for_type:ty, $n:literal) => {
-        generate_into_ndim_fn!($for_type, $n, |v| v.into());
-    };
-}
-generate_into_ndim_array!(Vec4, 4);
-generate_into_ndim_array!(Vec3, 3);
-generate_into_ndim_array!(Vec3A, 3);
-generate_into_ndim_array!(Vec2, 2);
-generate_into_ndim_fn!((f32, f32), 2, |(x, y)| [x, y]);
 
 // Conversions from NDim to Image
 
@@ -212,6 +182,25 @@ impl<'a, const N: usize> AsPixels<[f32; N]> for NDimView<'a> {
         Err(ShapeMismatch {
             actual: self.channels(),
             expected: vec![N],
+        })
+    }
+}
+impl<'a> AsPixels<Vec2> for NDimView<'a> {
+    fn as_pixels(&self) -> Result<Image<Vec2>, ShapeMismatch> {
+        if self.channels() == 1 {
+            let data = self.data.iter().map(|g| Vec2::new(*g, *g)).collect();
+            return Ok(Image::new(self.size(), data));
+        }
+        if self.channels() == 2 {
+            let (chunks, rest) = slice_as_chunks::<_, 2>(self.data);
+            assert!(rest.is_empty());
+            let data = chunks.iter().map(|[x, y]| Vec2::new(*x, *y)).collect();
+            return Ok(Image::new(self.size(), data));
+        }
+
+        Err(ShapeMismatch {
+            actual: self.channels(),
+            expected: vec![1, 2],
         })
     }
 }
