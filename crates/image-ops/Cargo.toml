@@ -11,6 +11,7 @@ rust-version.workspace = true
 zhang_hilbert = "0.1.1"
 rstar = "0.11.0"
 ahash = "0.8.3"
+resize = "0.8.2"
 glam.workspace = true
 image-core.workspace = true
 

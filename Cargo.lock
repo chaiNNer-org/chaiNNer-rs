@@ -601,6 +601,7 @@ dependencies = [
  "criterion",
  "glam",
  "image-core",
+ "resize",
  "rstar",
  "test-util",
  "zhang_hilbert",
@@ -1166,6 +1167,22 @@ name = "regex-syntax"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
+
+[[package]]
+name = "resize"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ce43c0220eff4793a20c120ff89ee01499ba3c882957021dcdc12f5e4ca97c8"
+dependencies = [
+ "rayon",
+ "rgb",
+]
+
+[[package]]
+name = "rgb"
+version = "0.8.37"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05aaa8004b64fd573fc9d002f4e632d51ad4f026c2b5ba95fcb6c2f32c2c47d8"
 
 [[package]]
 name = "rstar"

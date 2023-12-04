@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use glam::{Vec3, Vec3A, Vec4};
+use glam::{Vec2, Vec3, Vec3A, Vec4};
 use image_core::{AsPixels, Image, NDimImage, NDimView, Shape, ShapeMismatch, Size};
 use numpy::{ndarray::Array3, IntoPyArray, Ix3, PyArray, PyReadonlyArrayDyn};
 use pyo3::Python;
@@ -84,6 +84,12 @@ impl<'py> ToOwnedImage<Image<f32>> for PyReadonlyArrayDyn<'py, f32> {
 }
 impl<'py, const N: usize> ToOwnedImage<Image<[f32; N]>> for PyReadonlyArrayDyn<'py, f32> {
     fn to_owned_image(&self) -> Result<Image<[f32; N]>, ShapeMismatch> {
+        let (shape, data) = read_numpy(self);
+        NDimView::new(shape, &data).as_pixels()
+    }
+}
+impl<'py> ToOwnedImage<Image<Vec2>> for PyReadonlyArrayDyn<'py, f32> {
+    fn to_owned_image(&self) -> Result<Image<Vec2>, ShapeMismatch> {
         let (shape, data) = read_numpy(self);
         NDimView::new(shape, &data).as_pixels()
     }

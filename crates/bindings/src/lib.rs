@@ -4,6 +4,7 @@ mod dither;
 mod macros;
 mod pixel_art;
 mod regex;
+mod resize;
 
 use image_core::{Image, NDimImage};
 use image_ops::fill_alpha::{fill_alpha, FillMode};
@@ -30,6 +31,9 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(dither::riemersma_dither))?;
 
     m.add_wrapped(wrap_pyfunction!(pixel_art::pixel_art_upscale))?;
+
+    m.add_class::<resize::ResizeFilter>()?;
+    m.add_wrapped(wrap_pyfunction!(resize::resize))?;
 
     /// Fill the transparent pixels in the given image with nearby colors.
     #[pyfn(m)]
