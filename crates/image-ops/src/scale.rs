@@ -14,6 +14,35 @@ pub enum Filter {
     Gauss,
 }
 
+impl From<Filter> for resize::Type {
+    fn from(filter: Filter) -> Self {
+        match filter {
+            Filter::Nearest => resize::Type::Point,
+            Filter::Box => {
+                let filter =
+                    resize::Filter::new(Box::new(|x| if x.abs() <= 0.5 { 1.0 } else { 0.0 }), 1.0);
+                resize::Type::Custom(filter)
+            }
+            Filter::Linear => resize::Type::Triangle,
+            Filter::CubicCatrom => resize::Type::Catrom,
+            Filter::CubicMitchell => resize::Type::Mitchell,
+            Filter::CubicBSpline => {
+                let filter = resize::Filter::new(
+                    // https://en.wikipedia.org/wiki/Mitchell%E2%80%93Netravali_filters#Implementations
+                    Box::new(|x| cubic_bc(1.0, 0.0, x)),
+                    2.0,
+                );
+                resize::Type::Custom(filter)
+            }
+            Filter::Lanczos3 => resize::Type::Lanczos3,
+            Filter::Gauss => {
+                let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 3.0);
+                resize::Type::Custom(filter)
+            }
+        }
+    }
+}
+
 struct FloatPixelFormat<T, G>
 where
     G: CorrectGamma<T>,
@@ -158,27 +187,7 @@ pub fn scale<P: ResizePixel>(
             // the nearest implementation isn't correct, so we use our own
             return Ok(nearest_neighbor(img, size));
         }
-        Filter::Box => {
-            let filter =
-                resize::Filter::new(Box::new(|x| if x.abs() <= 0.5 { 1.0 } else { 0.0 }), 1.0);
-            resize::Type::Custom(filter)
-        }
-        Filter::Linear => resize::Type::Triangle,
-        Filter::CubicCatrom => resize::Type::Catrom,
-        Filter::CubicMitchell => resize::Type::Mitchell,
-        Filter::CubicBSpline => {
-            let filter = resize::Filter::new(
-                // https://en.wikipedia.org/wiki/Mitchell%E2%80%93Netravali_filters#Implementations
-                Box::new(|x| cubic_bc(1.0, 0.0, x)),
-                2.0,
-            );
-            resize::Type::Custom(filter)
-        }
-        Filter::Lanczos3 => resize::Type::Lanczos3,
-        Filter::Gauss => {
-            let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 3.0);
-            resize::Type::Custom(filter)
-        }
+        _ => filter.into(),
     };
 
     let mut dest = Image::from_const(size, P::default());
