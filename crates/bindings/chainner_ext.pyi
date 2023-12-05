@@ -68,11 +68,16 @@ def riemersma_dither(
 
 class ResizeFilter(Enum):
     Nearest = 0
+    Box = 8
     Linear = 1
+    Hermite = 9
     CubicCatrom = 2
     CubicMitchell = 3
     CubicBSpline = 6
+    Hamming = 10
+    Hann = 11
     Lanczos = 4
+    Lagrange = 7
     Gauss = 5
 
 def resize(

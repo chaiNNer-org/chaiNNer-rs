@@ -10,11 +10,16 @@ use crate::{convert::get_channels, load_image, IntoNumpy};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ResizeFilter {
     Nearest = 0,
+    Box = 8,
     Linear = 1,
+    Hermite = 9,
     CubicCatrom = 2,
     CubicMitchell = 3,
     CubicBSpline = 6,
+    Hamming = 10,
+    Hann = 11,
     Lanczos = 4,
+    Lagrange = 7,
     Gauss = 5,
 }
 
@@ -22,11 +27,16 @@ impl From<ResizeFilter> for Filter {
     fn from(f: ResizeFilter) -> Self {
         match f {
             ResizeFilter::Nearest => Filter::Nearest,
+            ResizeFilter::Box => Filter::Box,
             ResizeFilter::Linear => Filter::Linear,
+            ResizeFilter::Hermite => Filter::Hermite,
             ResizeFilter::CubicCatrom => Filter::CubicCatrom,
             ResizeFilter::CubicMitchell => Filter::CubicMitchell,
             ResizeFilter::CubicBSpline => Filter::CubicBSpline,
+            ResizeFilter::Hamming => Filter::Hamming,
+            ResizeFilter::Hann => Filter::Hann,
             ResizeFilter::Lanczos => Filter::Lanczos3,
+            ResizeFilter::Lagrange => Filter::Lagrange,
             ResizeFilter::Gauss => Filter::Gauss,
         }
     }
