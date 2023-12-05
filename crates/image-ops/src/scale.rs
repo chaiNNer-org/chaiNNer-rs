@@ -5,6 +5,7 @@ use resize::PixelFormat;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Filter {
     Nearest,
+    Box,
     Linear,
     CubicCatrom,
     CubicMitchell,
@@ -156,6 +157,11 @@ pub fn scale<P: ResizePixel>(
         Filter::Nearest => {
             // the nearest implementation isn't correct, so we use our own
             return Ok(nearest_neighbor(img, size));
+        }
+        Filter::Box => {
+            let filter =
+                resize::Filter::new(Box::new(|x| if x.abs() <= 0.5 { 1.0 } else { 0.0 }), 1.0);
+            resize::Type::Custom(filter)
         }
         Filter::Linear => resize::Type::Triangle,
         Filter::CubicCatrom => resize::Type::Catrom,
@@ -318,6 +324,21 @@ mod tests {
         let new_size = Size::new(200, 200);
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_nearest_200");
+    }
+
+    #[test]
+    fn scale_box() {
+        let filter = super::Filter::Box;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_box_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_box_200");
     }
 
     #[test]
