@@ -5,12 +5,133 @@ use resize::PixelFormat;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Filter {
     Nearest,
+    Box,
     Linear,
+    Hermite,
     CubicCatrom,
     CubicMitchell,
     CubicBSpline,
+    Hamming,
+    Hann,
     Lanczos3,
+    Lagrange,
     Gauss,
+}
+
+impl From<Filter> for resize::Type {
+    fn from(filter: Filter) -> Self {
+        #[inline]
+        fn sinc(x: f32) -> f32 {
+            if x == 0.0 {
+                1.0
+            } else {
+                x.sin() / x
+            }
+        }
+
+        // Taken from
+        // https://github.com/PistonDevelopers/image/blob/2921cd7/src/imageops/sample.rs#L68
+        // TODO(Kagami): Could be optimized for known B and C, see e.g.
+        // https://github.com/sekrit-twc/zimg/blob/1a606c0/src/zimg/resize/filter.cpp#L149
+        #[inline(always)]
+        fn cubic_bc(b: f32, c: f32, x: f32) -> f32 {
+            let a = x.abs();
+            let k = if a < 1.0 {
+                (12.0 - 9.0 * b - 6.0 * c) * a.powi(3)
+                    + (-18.0 + 12.0 * b + 6.0 * c) * a.powi(2)
+                    + (6.0 - 2.0 * b)
+            } else if a < 2.0 {
+                (-b - 6.0 * c) * a.powi(3)
+                    + (6.0 * b + 30.0 * c) * a.powi(2)
+                    + (-12.0 * b - 48.0 * c) * a
+                    + (8.0 * b + 24.0 * c)
+            } else {
+                0.0
+            };
+            k / 6.0
+        }
+
+        // Taken from: https://github.com/image-rs/image/blob/81b3fe66fba04b8b60ba79b3641826df22fca67e/src/imageops/sample.rs#L181
+        /// The Gaussian Function.
+        /// ```r``` is the standard deviation.
+        fn gaussian(x: f32, r: f32) -> f32 {
+            ((2.0 * std::f32::consts::PI).sqrt() * r).recip()
+                * (-x.powi(2) / (2.0 * r.powi(2))).exp()
+        }
+
+        fn lagrange(x: f32, support: f32) -> f32 {
+            let x = x.abs();
+            if x > support {
+                return 0.0;
+            }
+
+            // Taken from
+            // https://github.com/ImageMagick/ImageMagick/blob/e8b7974e8756fb278ec85d896065a1b96ed85af9/MagickCore/resize.c#L406
+            let order = (2.0 * support) as isize;
+            let n = (support + x) as isize;
+            let mut value = 1.0;
+            for i in 0..order {
+                let d = (n - i) as f32;
+                if d != 0.0 {
+                    value *= (d - x) / d;
+                }
+            }
+            value
+        }
+
+        match filter {
+            Filter::Nearest => resize::Type::Point,
+            Filter::Box => {
+                let filter =
+                    resize::Filter::new(Box::new(|x| if x.abs() <= 0.5 { 1.0 } else { 0.0 }), 1.0);
+                resize::Type::Custom(filter)
+            }
+            Filter::Linear => resize::Type::Triangle,
+            Filter::Hermite => {
+                let filter = resize::Filter::new(Box::new(|x| cubic_bc(0.0, 0.0, x)), 1.0);
+                resize::Type::Custom(filter)
+            }
+            Filter::CubicCatrom => resize::Type::Catrom,
+            Filter::CubicMitchell => resize::Type::Mitchell,
+            Filter::CubicBSpline => {
+                let filter = resize::Filter::new(
+                    // https://en.wikipedia.org/wiki/Mitchell%E2%80%93Netravali_filters#Implementations
+                    Box::new(|x| cubic_bc(1.0, 0.0, x)),
+                    2.0,
+                );
+                resize::Type::Custom(filter)
+            }
+            Filter::Hamming => {
+                let filter = resize::Filter::new(
+                    Box::new(|x| {
+                        let x = x.abs() * std::f32::consts::PI;
+                        sinc(x) * (0.54 + 0.46 * x.cos())
+                    }),
+                    1.0,
+                );
+                resize::Type::Custom(filter)
+            }
+            Filter::Hann => {
+                let filter = resize::Filter::new(
+                    Box::new(|x| {
+                        let x = x.abs() * std::f32::consts::PI;
+                        sinc(x) * (0.5 + 0.5 * x.cos())
+                    }),
+                    1.0,
+                );
+                resize::Type::Custom(filter)
+            }
+            Filter::Lanczos3 => resize::Type::Lanczos3,
+            Filter::Lagrange => {
+                let filter = resize::Filter::new(Box::new(|x| lagrange(x, 2.0)), 2.0);
+                resize::Type::Custom(filter)
+            }
+            Filter::Gauss => {
+                let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 3.0);
+                resize::Type::Custom(filter)
+            }
+        }
+    }
 }
 
 struct FloatPixelFormat<T, G>
@@ -157,22 +278,7 @@ pub fn scale<P: ResizePixel>(
             // the nearest implementation isn't correct, so we use our own
             return Ok(nearest_neighbor(img, size));
         }
-        Filter::Linear => resize::Type::Triangle,
-        Filter::CubicCatrom => resize::Type::Catrom,
-        Filter::CubicMitchell => resize::Type::Mitchell,
-        Filter::CubicBSpline => {
-            let filter = resize::Filter::new(
-                // https://en.wikipedia.org/wiki/Mitchell%E2%80%93Netravali_filters#Implementations
-                Box::new(|x| cubic_bc(1.0, 0.0, x)),
-                2.0,
-            );
-            resize::Type::Custom(filter)
-        }
-        Filter::Lanczos3 => resize::Type::Lanczos3,
-        Filter::Gauss => {
-            let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 2.0);
-            resize::Type::Custom(filter)
-        }
+        _ => filter.into(),
     };
 
     let mut dest = Image::from_const(size, P::default());
@@ -188,35 +294,6 @@ pub fn scale<P: ResizePixel>(
     .resize(img.data(), dest.data_mut())?;
 
     Ok(dest)
-}
-
-// Taken from
-// https://github.com/PistonDevelopers/image/blob/2921cd7/src/imageops/sample.rs#L68
-// TODO(Kagami): Could be optimized for known B and C, see e.g.
-// https://github.com/sekrit-twc/zimg/blob/1a606c0/src/zimg/resize/filter.cpp#L149
-#[inline(always)]
-fn cubic_bc(b: f32, c: f32, x: f32) -> f32 {
-    let a = x.abs();
-    let k = if a < 1.0 {
-        (12.0 - 9.0 * b - 6.0 * c) * a.powi(3)
-            + (-18.0 + 12.0 * b + 6.0 * c) * a.powi(2)
-            + (6.0 - 2.0 * b)
-    } else if a < 2.0 {
-        (-b - 6.0 * c) * a.powi(3)
-            + (6.0 * b + 30.0 * c) * a.powi(2)
-            + (-12.0 * b - 48.0 * c) * a
-            + (8.0 * b + 24.0 * c)
-    } else {
-        0.0
-    };
-    k / 6.0
-}
-
-// Taken from: https://github.com/image-rs/image/blob/81b3fe66fba04b8b60ba79b3641826df22fca67e/src/imageops/sample.rs#L181
-/// The Gaussian Function.
-/// ```r``` is the standard deviation.
-fn gaussian(x: f32, r: f32) -> f32 {
-    ((2.0 * std::f32::consts::PI).sqrt() * r).recip() * (-x.powi(2) / (2.0 * r.powi(2))).exp()
 }
 
 fn nearest_neighbor<P: Clone>(src: &Image<P>, size: Size) -> Image<P> {
@@ -321,6 +398,21 @@ mod tests {
     }
 
     #[test]
+    fn scale_box() {
+        let filter = super::Filter::Box;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_box_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_box_200");
+    }
+
+    #[test]
     fn scale_linear() {
         let filter = super::Filter::Linear;
 
@@ -333,6 +425,21 @@ mod tests {
         let new_size = Size::new(200, 200);
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_linear_200");
+    }
+
+    #[test]
+    fn scale_hermite() {
+        let filter = super::Filter::Hermite;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hermite_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hermite_200");
     }
 
     #[test]
@@ -382,6 +489,36 @@ mod tests {
     }
 
     #[test]
+    fn scale_hamming() {
+        let filter = super::Filter::Hamming;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hamming_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hamming_200");
+    }
+
+    #[test]
+    fn scale_hann() {
+        let filter = super::Filter::Hann;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hann_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hann_200");
+    }
+
+    #[test]
     fn scale_lanczos3() {
         let filter = super::Filter::Lanczos3;
 
@@ -410,6 +547,21 @@ mod tests {
         let new_size = Size::new(200, 200);
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_gauss_200");
+    }
+
+    #[test]
+    fn scale_lagrange() {
+        let filter = super::Filter::Lagrange;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_lagrange_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_lagrange_200");
     }
 
     #[test]
