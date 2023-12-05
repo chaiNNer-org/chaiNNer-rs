@@ -26,7 +26,7 @@ Useful commands:
 
 ### Structure
 
-This project consists of 4 crates:
+This project consists of multiple crates:
 
 - `bindings` - Python bindings for the other crates.
 - `image-core` - The core interfaces used by the other crates.
