@@ -51,14 +51,6 @@ impl From<Filter> for resize::Type {
             k / 6.0
         }
 
-        // Taken from: https://github.com/image-rs/image/blob/81b3fe66fba04b8b60ba79b3641826df22fca67e/src/imageops/sample.rs#L181
-        /// The Gaussian Function.
-        /// ```r``` is the standard deviation.
-        fn gaussian(x: f32, r: f32) -> f32 {
-            ((2.0 * std::f32::consts::PI).sqrt() * r).recip()
-                * (-x.powi(2) / (2.0 * r.powi(2))).exp()
-        }
-
         fn lagrange(x: f32, support: f32) -> f32 {
             let x = x.abs();
             if x > support {
@@ -93,14 +85,7 @@ impl From<Filter> for resize::Type {
             }
             Filter::CubicCatrom => resize::Type::Catrom,
             Filter::CubicMitchell => resize::Type::Mitchell,
-            Filter::CubicBSpline => {
-                let filter = resize::Filter::new(
-                    // https://en.wikipedia.org/wiki/Mitchell%E2%80%93Netravali_filters#Implementations
-                    Box::new(|x| cubic_bc(1.0, 0.0, x)),
-                    2.0,
-                );
-                resize::Type::Custom(filter)
-            }
+            Filter::CubicBSpline => resize::Type::BSpline,
             Filter::Hamming => {
                 let filter = resize::Filter::new(
                     Box::new(|x| {
@@ -126,10 +111,7 @@ impl From<Filter> for resize::Type {
                 let filter = resize::Filter::new(Box::new(|x| lagrange(x, 2.0)), 2.0);
                 resize::Type::Custom(filter)
             }
-            Filter::Gauss => {
-                let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 3.0);
-                resize::Type::Custom(filter)
-            }
+            Filter::Gauss => resize::Type::Gaussian,
         }
     }
 }
