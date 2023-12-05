@@ -7,6 +7,7 @@ pub enum Filter {
     Nearest,
     Box,
     Linear,
+    Hermite,
     CubicCatrom,
     CubicMitchell,
     CubicBSpline,
@@ -24,6 +25,10 @@ impl From<Filter> for resize::Type {
                 resize::Type::Custom(filter)
             }
             Filter::Linear => resize::Type::Triangle,
+            Filter::Hermite => {
+                let filter = resize::Filter::new(Box::new(|x| cubic_bc(0.0, 0.0, x)), 1.0);
+                resize::Type::Custom(filter)
+            }
             Filter::CubicCatrom => resize::Type::Catrom,
             Filter::CubicMitchell => resize::Type::Mitchell,
             Filter::CubicBSpline => {
@@ -363,6 +368,21 @@ mod tests {
         let new_size = Size::new(200, 200);
         let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
         nn.snapshot("resize_linear_200");
+    }
+
+    #[test]
+    fn scale_hermite() {
+        let filter = super::Filter::Hermite;
+
+        let original = small_portrait();
+        let new_size = original.size().scale(4.);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hermite_4x");
+
+        let original = read_portrait();
+        let new_size = Size::new(200, 200);
+        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        nn.snapshot("resize_hermite_200");
     }
 
     #[test]
