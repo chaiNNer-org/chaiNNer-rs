@@ -170,7 +170,7 @@ pub fn scale<P: ResizePixel>(
         }
         Filter::Lanczos3 => resize::Type::Lanczos3,
         Filter::Gauss => {
-            let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 2.0);
+            let filter = resize::Filter::new(Box::new(|x| gaussian(x, 0.5)), 3.0);
             resize::Type::Custom(filter)
         }
     };
