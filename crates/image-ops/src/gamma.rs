@@ -7,48 +7,20 @@ pub fn gamma_ndim(image: &mut NDimImage, gamma: f32) {
 
     if image.channels() == 4 {
         // only apply gamma to RGB channels
-        image
-            .data_mut()
-            .par_chunks_mut(BLOCK_SIZE)
-            .for_each(|chunk| {
-                // we want to use AVX2 if possible, because it's ~2x faster
-                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-                {
-                    if is_x86_feature_detected!("avx2") {
-                        let (chunks, rest) = image_core::util::slice_as_chunks_mut::<f32, 8>(chunk);
+        image.data_mut().chunks_mut(BLOCK_SIZE).for_each(|chunk| {
+            // the AVX implementation is actually slower than the trivial one,
+            // so we don't use it here
 
-                        // do the rest first
-                        assert!(rest.len() % 4 == 0);
-                        if rest.len() == 4 {
-                            rest[0] = rest[0].powf(gamma);
-                            rest[1] = rest[1].powf(gamma);
-                            rest[2] = rest[2].powf(gamma);
-                        }
+            let (chunks, rest) = image_core::util::slice_as_chunks_mut::<f32, 4>(chunk);
+            assert!(rest.is_empty());
 
-                        chunks.iter_mut().for_each(|f| {
-                            // only apply gamma to the RGB channels
-                            // it's a shame that 25% of the computation is wasted
-                            let a1 = f[3].powf(gamma);
-                            let a2 = f[7].powf(gamma);
-                            unsafe { avx2::pow_clamp(f, gamma) }
-                            f[3] = a1;
-                            f[7] = a2;
-                        });
-                        return;
-                    }
-                }
-
-                // fallback
-                let (chunks, rest) = image_core::util::slice_as_chunks_mut::<f32, 4>(chunk);
-                assert!(rest.is_empty());
-
-                chunks.iter_mut().for_each(|p| {
-                    // only apply gamma to the RGB channels
-                    p[0] = p[0].powf(gamma);
-                    p[1] = p[1].powf(gamma);
-                    p[2] = p[2].powf(gamma);
-                });
+            chunks.iter_mut().for_each(|p| {
+                // only apply gamma to the RGB channels
+                p[0] = p[0].powf(gamma);
+                p[1] = p[1].powf(gamma);
+                p[2] = p[2].powf(gamma);
             });
+        });
     } else {
         image
             .data_mut()
