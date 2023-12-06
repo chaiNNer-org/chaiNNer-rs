@@ -3,6 +3,7 @@ pub mod dither;
 pub mod esdt;
 pub mod fill_alpha;
 pub mod fragment_blur;
+pub mod gamma;
 pub mod palette;
 pub mod pixel_art;
 pub mod scale;

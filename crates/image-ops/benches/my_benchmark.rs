@@ -133,6 +133,13 @@ fn criterion_benchmark(c: &mut Criterion) {
             esdf(&img_at, 200.0, 0.25, false, false);
         })
     });
+
+    c.bench_function("gamma", |b| {
+        b.iter(|| {
+            let mut img = img_lion_ndim.clone();
+            image_ops::gamma::gamma_ndim(&mut img, 2.2);
+        })
+    });
 }
 
 criterion_group!(benches, criterion_benchmark);

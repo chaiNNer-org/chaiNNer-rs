@@ -139,5 +139,19 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         Ok(result.into_pyarray(py))
     }
 
+    #[pyfn(m)]
+    fn fast_gamma<'py>(
+        py: Python<'py>,
+        img: PyReadonlyArrayDyn<f32>,
+        gamma: f32,
+    ) -> PyResult<&'py PyArray3<f32>> {
+        let mut img = load_image!(img);
+        let result = py.allow_threads(|| {
+            image_ops::gamma::gamma_ndim(&mut img, gamma);
+            img.into_numpy()
+        });
+        Ok(result.into_pyarray(py))
+    }
+
     Ok(())
 }
