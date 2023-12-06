@@ -7,20 +7,23 @@ pub fn gamma_ndim(image: &mut NDimImage, gamma: f32) {
 
     if image.channels() == 4 {
         // only apply gamma to RGB channels
-        image.data_mut().chunks_mut(BLOCK_SIZE).for_each(|chunk| {
-            // the AVX implementation is actually slower than the trivial one,
-            // so we don't use it here
+        image
+            .data_mut()
+            .par_chunks_mut(BLOCK_SIZE)
+            .for_each(|chunk| {
+                // the AVX implementation is actually slower than the trivial one,
+                // so we don't use it here
 
-            let (chunks, rest) = image_core::util::slice_as_chunks_mut::<f32, 4>(chunk);
-            assert!(rest.is_empty());
+                let (chunks, rest) = image_core::util::slice_as_chunks_mut::<f32, 4>(chunk);
+                assert!(rest.is_empty());
 
-            chunks.iter_mut().for_each(|p| {
-                // only apply gamma to the RGB channels
-                p[0] = p[0].powf(gamma);
-                p[1] = p[1].powf(gamma);
-                p[2] = p[2].powf(gamma);
+                chunks.iter_mut().for_each(|p| {
+                    // only apply gamma to the RGB channels
+                    p[0] = p[0].powf(gamma);
+                    p[1] = p[1].powf(gamma);
+                    p[2] = p[2].powf(gamma);
+                });
             });
-        });
     } else {
         image
             .data_mut()
