@@ -1,10 +1,13 @@
 use glam::{Vec2, Vec3A, Vec4};
-use image_core::{ClipFloat, FlattenData, Image, Size};
+use image_core::{ClipFloat, Flatten, Image, Size};
 use image_ops::scale::{CorrectGamma, Filter, GammaCorrection, NoGammaCorrection, ResizePixel};
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{convert::get_channels, load_image, IntoNumpy};
+use crate::{
+    convert::{get_channels, LoadImage},
+    IntoNumpy,
+};
 
 #[pyclass]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -61,7 +64,7 @@ pub fn resize<'py>(
     let c = get_channels(&img);
     return match c {
         1 => {
-            let img: Image<f32> = load_image!(img);
+            let img: Image<f32> = img.load_image()?;
 
             if gamma_correction {
                 with_pixel_format(py, &img, new_size, filter, GammaCorrection)
@@ -70,7 +73,7 @@ pub fn resize<'py>(
             }
         },
         2 => {
-            let img: Image<Vec2> = load_image!(img);
+            let img: Image<Vec2> = img.load_image()?;
 
             if gamma_correction {
                 with_pixel_format(py, &img, new_size, filter, GammaCorrection)
@@ -79,7 +82,7 @@ pub fn resize<'py>(
             }
         },
         3 => {
-            let img: Image<Vec3A> = load_image!(img);
+            let img: Image<Vec3A> = img.load_image()?;
 
             if gamma_correction {
                 with_pixel_format(py, &img, new_size, filter, GammaCorrection)
@@ -88,7 +91,7 @@ pub fn resize<'py>(
             }
         },
         4 => {
-            let img: Image<Vec4> = load_image!(img);
+            let img: Image<Vec4> = img.load_image()?;
 
             if gamma_correction {
                 with_pixel_format(py, &img, new_size, filter, GammaCorrection)
@@ -111,7 +114,7 @@ pub fn resize<'py>(
         gamma_correction: G,
     ) -> PyResult<&'py PyArray3<f32>>
     where
-        P: ResizePixel + FlattenData + ClipFloat + 'static,
+        P: ResizePixel + Flatten + ClipFloat + 'static,
         G: CorrectGamma<P> + Send + Sync + 'static,
     {
         let result = py.allow_threads(|| {

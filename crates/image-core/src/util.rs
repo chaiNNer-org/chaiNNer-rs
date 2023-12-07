@@ -116,6 +116,39 @@ pub fn vec_into_flattened<T, const N: usize>(s: Vec<[T; N]>) -> Vec<T> {
     unsafe { Vec::<T>::from_raw_parts(ptr.cast(), new_len, new_cap) }
 }
 
+/// Takes a `Vec<T>` and chunks it into a `Vec<[T; N]>`.
+///
+/// # Panics
+///
+/// If the length of the vector is not a multiple of `N`.
+pub fn vec_into_chunks<T, const N: usize>(mut s: Vec<T>) -> Vec<[T; N]> {
+    assert!(
+        s.len() % N == 0,
+        "vec_into_chunks: len must be a multiple of N"
+    );
+    s.shrink_to_fit();
+
+    let (ptr, len, cap) = into_raw_parts(s);
+
+    let (new_len, new_cap) = if std::mem::size_of::<T>() == 0 {
+        (len / N, usize::MAX)
+    } else {
+        // SAFETY:
+        // - `cap * N` cannot overflow because the allocation is already in
+        // the address space.
+        // - Each `[T; N]` has `N` valid elements, so there are `len * N`
+        // valid elements in the allocation.
+        (len / N, cap / N)
+    };
+    // SAFETY:
+    // - `ptr` was allocated by `self`
+    // - `ptr` is well-aligned because `[T; N]` has the same alignment as `T`.
+    // - `new_cap` refers to the same sized allocation as `cap` because
+    // `new_cap * size_of::<T>()` == `cap * size_of::<[T; N]>()`
+    // - `len` <= `cap`, so `len * N` <= `cap * N`.
+    unsafe { Vec::<[T; N]>::from_raw_parts(ptr.cast(), new_len, new_cap) }
+}
+
 /// Decomposes a `Vec<T>` into its raw components.
 ///
 /// Returns the raw pointer to the underlying data, the length of

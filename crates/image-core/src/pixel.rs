@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use glam::{Vec2, Vec3, Vec3A, Vec4};
 
-use crate::util::vec_into_flattened;
+use crate::util::{slice_as_chunks, vec_into_chunks, vec_into_flattened};
 
 pub trait Components {
     const COMPONENTS: usize;
@@ -10,15 +12,6 @@ impl Components for f32 {
 }
 impl<const N: usize> Components for [f32; N] {
     const COMPONENTS: usize = N;
-}
-impl Components for (f32, f32) {
-    const COMPONENTS: usize = 2;
-}
-impl Components for (f32, f32, f32) {
-    const COMPONENTS: usize = 3;
-}
-impl Components for (f32, f32, f32, f32) {
-    const COMPONENTS: usize = 4;
 }
 impl Components for Vec2 {
     const COMPONENTS: usize = 2;
@@ -33,60 +26,189 @@ impl Components for Vec4 {
     const COMPONENTS: usize = 4;
 }
 
-pub trait FlattenData: Components + Sized {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32>;
+pub trait Flatten: Components + Sized {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32>;
 }
 
-impl FlattenData for f32 {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl Flatten for f32 {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         vec
     }
 }
-impl<const N: usize> FlattenData for [f32; N] {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl<const N: usize> Flatten for [f32; N] {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         vec_into_flattened(vec)
     }
 }
-impl FlattenData for (f32, f32) {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl Flatten for Vec2 {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
         vec_into_flattened(vec)
     }
 }
-impl FlattenData for (f32, f32, f32) {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl Flatten for Vec3 {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
         vec_into_flattened(vec)
     }
 }
-impl FlattenData for (f32, f32, f32, f32) {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl Flatten for Vec3A {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
         vec_into_flattened(vec)
     }
 }
-impl FlattenData for Vec2 {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
+impl Flatten for Vec4 {
+    fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
         let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
         vec_into_flattened(vec)
     }
 }
-impl FlattenData for Vec3 {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
-        let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
-        vec_into_flattened(vec)
+
+pub struct UnsupportedChannel {
+    pub supported: &'static [usize],
+}
+
+fn iter_rg<T>(
+    flat: &[f32],
+    channels: usize,
+    f: impl Fn([f32; 2]) -> T,
+) -> Result<Vec<T>, UnsupportedChannel> {
+    match channels {
+        1 => Ok(flat.iter().map(|g| f([*g, *g])).collect()),
+        2 => {
+            let (chunks, rest) = slice_as_chunks::<_, 2>(flat);
+            assert!(rest.is_empty());
+            Ok(chunks.iter().map(|[x, y]| f([*x, *y])).collect())
+        }
+        _ => Err(UnsupportedChannel { supported: &[1, 2] }),
     }
 }
-impl FlattenData for Vec3A {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
-        let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
-        vec_into_flattened(vec)
+fn iter_rgb<T>(
+    flat: &[f32],
+    channels: usize,
+    f: impl Fn([f32; 3]) -> T,
+) -> Result<Vec<T>, UnsupportedChannel> {
+    match channels {
+        1 => Ok(flat.iter().map(|g| f([*g, *g, *g])).collect()),
+        3 => {
+            let (chunks, rest) = slice_as_chunks::<_, 3>(flat);
+            assert!(rest.is_empty());
+            Ok(chunks.iter().map(|[x, y, z]| f([*x, *y, *z])).collect())
+        }
+        _ => Err(UnsupportedChannel { supported: &[1, 3] }),
     }
 }
-impl FlattenData for Vec4 {
-    fn flatten_data(vec: Vec<Self>) -> Vec<f32> {
-        let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
-        vec_into_flattened(vec)
+fn iter_rgba<T>(
+    flat: &[f32],
+    channels: usize,
+    f: impl Fn([f32; 4]) -> T,
+) -> Result<Vec<T>, UnsupportedChannel> {
+    match channels {
+        1 => Ok(flat.iter().map(|g| f([*g, *g, *g, 1.])).collect()),
+        3 => {
+            let (chunks, rest) = slice_as_chunks::<_, 3>(flat);
+            assert!(rest.is_empty());
+            Ok(chunks.iter().map(|[x, y, z]| f([*x, *y, *z, 1.])).collect())
+        }
+        4 => {
+            let (chunks, rest) = slice_as_chunks::<_, 4>(flat);
+            assert!(rest.is_empty());
+            Ok(chunks
+                .iter()
+                .map(|[x, y, z, w]| f([*x, *y, *z, *w]))
+                .collect())
+        }
+        _ => Err(UnsupportedChannel {
+            supported: &[1, 3, 4],
+        }),
+    }
+}
+
+pub trait FromFlat: Components + Sized
+where
+    Self: Clone,
+    [Self]: std::borrow::ToOwned<Owned = Vec<Self>>,
+{
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel>;
+    fn from_flat_vec(vec: Vec<f32>, channels: usize) -> Result<Vec<Self>, UnsupportedChannel> {
+        Ok(Self::from_flat_slice(&vec, channels)?.into_owned())
+    }
+}
+
+impl FromFlat for f32 {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        if channels == 1 {
+            return Ok(Cow::Borrowed(slice));
+        }
+        Err(UnsupportedChannel { supported: &[1] })
+    }
+    fn from_flat_vec(vec: Vec<f32>, channels: usize) -> Result<Vec<Self>, UnsupportedChannel> {
+        if channels == 1 {
+            return Ok(vec);
+        }
+        Err(UnsupportedChannel { supported: &[1] })
+    }
+}
+impl<const N: usize> FromFlat for [f32; N] {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        if channels == N {
+            let (chunks, rest) = slice_as_chunks(slice);
+            assert!(rest.is_empty());
+            return Ok(Cow::Borrowed(chunks));
+        }
+        Err(UnsupportedChannel { supported: &[N] })
+    }
+    fn from_flat_vec(vec: Vec<f32>, channels: usize) -> Result<Vec<Self>, UnsupportedChannel> {
+        if channels == N {
+            return Ok(vec_into_chunks(vec));
+        }
+        Err(UnsupportedChannel { supported: &[N] })
+    }
+}
+impl FromFlat for Vec2 {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        let vec = iter_rg(slice, channels, |a| a.into())?;
+        Ok(Cow::Owned(vec))
+    }
+}
+impl FromFlat for Vec3 {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        let vec = iter_rgb(slice, channels, |a| a.into())?;
+        Ok(Cow::Owned(vec))
+    }
+}
+impl FromFlat for Vec3A {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        let vec = iter_rgb(slice, channels, |a| a.into())?;
+        Ok(Cow::Owned(vec))
+    }
+}
+impl FromFlat for Vec4 {
+    fn from_flat_slice(
+        slice: &[f32],
+        channels: usize,
+    ) -> Result<Cow<'_, [Self]>, UnsupportedChannel> {
+        let vec = iter_rgba(slice, channels, |a| a.into())?;
+        Ok(Cow::Owned(vec))
     }
 }
 
@@ -102,30 +224,6 @@ impl ClipFloat for f32 {
 impl<const N: usize> ClipFloat for [f32; N] {
     fn clip(self, min: f32, max: f32) -> Self {
         self.map(|x| x.clamp(min, max))
-    }
-}
-impl ClipFloat for (f32, f32) {
-    fn clip(self, min: f32, max: f32) -> Self {
-        (self.0.clamp(min, max), self.1.clamp(min, max))
-    }
-}
-impl ClipFloat for (f32, f32, f32) {
-    fn clip(self, min: f32, max: f32) -> Self {
-        (
-            self.0.clamp(min, max),
-            self.1.clamp(min, max),
-            self.2.clamp(min, max),
-        )
-    }
-}
-impl ClipFloat for (f32, f32, f32, f32) {
-    fn clip(self, min: f32, max: f32) -> Self {
-        (
-            self.0.clamp(min, max),
-            self.1.clamp(min, max),
-            self.2.clamp(min, max),
-            self.3.clamp(min, max),
-        )
     }
 }
 impl ClipFloat for Vec2 {

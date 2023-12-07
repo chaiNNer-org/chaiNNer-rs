@@ -1,15 +1,15 @@
 mod clipboard;
 mod convert;
 mod dither;
-mod macros;
 mod pixel_art;
 mod regex;
 mod resize;
 
+use convert::LoadImage;
 use image_core::{Image, NDimImage};
 use image_ops::fill_alpha::{fill_alpha, FillMode};
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::prelude::*;
 
 use crate::convert::IntoNumpy;
 
@@ -44,7 +44,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         iterations: u32,
         fragment_count: u32,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let mut img = load_image!(img);
+        let mut img = img.load_image()?;
         let result = py.allow_threads(|| {
             fill_alpha(
                 &mut img,
@@ -68,7 +68,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         threshold: f32,
         iterations: u32,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let mut img = load_image!(img);
+        let mut img = img.load_image()?;
         let result = py.allow_threads(|| {
             fill_alpha(
                 &mut img,
@@ -90,7 +90,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         min_radius: u32,
         anti_aliasing: bool,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let mut img = load_image!(img);
+        let mut img = img.load_image()?;
         let result = py.allow_threads(|| {
             fill_alpha(
                 &mut img,
@@ -114,10 +114,10 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         threshold: f32,
         anti_aliasing: bool,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let img: NDimImage = load_image!(img);
+        let mut img: NDimImage = img.load_image()?;
         let result = py.allow_threads(|| {
-            image_ops::threshold::binary_threshold(img.view(), threshold, anti_aliasing)
-                .into_numpy()
+            image_ops::threshold::binary_threshold(&mut img, threshold, anti_aliasing);
+            img.into_numpy()
         });
         Ok(result.into_pyarray(py))
     }
@@ -132,7 +132,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         pre_process: bool,
         post_process: bool,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let img: Image<f32> = load_image!(img);
+        let img: Image<f32> = img.load_image()?;
         let result = py.allow_threads(|| {
             image_ops::esdt::esdf(&img, radius, cutoff, pre_process, post_process).into_numpy()
         });
@@ -145,7 +145,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         img: PyReadonlyArrayDyn<f32>,
         gamma: f32,
     ) -> PyResult<&'py PyArray3<f32>> {
-        let mut img = load_image!(img);
+        let mut img = img.load_image()?;
         let result = py.allow_threads(|| {
             image_ops::gamma::gamma_ndim(&mut img, gamma);
             img.into_numpy()

@@ -2,25 +2,24 @@ use image_core::{NDimImage, NDimView};
 
 use crate::util::{move_range, BiLinear};
 
-pub fn binary_threshold(img: NDimView, threshold: f32, anti_aliasing: bool) -> NDimImage {
-    // start with a normal threshold
-    let mut dest = NDimImage::new(
-        img.shape(),
-        img.data()
-            .iter()
-            .map(|&p| if p > threshold { 1.0 } else { 0.0 })
-            .collect(),
-    );
-
-    // if anti-aliasing is enabled, we need to do some extra work
+pub fn binary_threshold(img: &mut NDimImage, threshold: f32, anti_aliasing: bool) {
     if anti_aliasing {
+        // if anti-aliasing is enabled, we need to do some extra work
+        let original = img.clone();
+
+        for p in img.data_mut() {
+            *p = if *p > threshold { 1.0 } else { 0.0 };
+        }
+
         let c = img.channels();
         for i in 0..c {
-            binary_threshold_aa(img, &mut dest, threshold, i, c);
+            binary_threshold_aa(original.view(), img, threshold, i, c);
+        }
+    } else {
+        for p in img.data_mut() {
+            *p = if *p > threshold { 1.0 } else { 0.0 };
         }
     }
-
-    dest
 }
 
 fn binary_threshold_aa(
@@ -140,23 +139,23 @@ mod tests {
 
     #[test]
     fn binary_threshold() {
-        let original: NDimImage = read_flower().into();
-        let result = super::binary_threshold(original.view(), 0.5, false);
-        result.snapshot("threshold_flower");
+        let mut original: NDimImage = read_flower().into();
+        super::binary_threshold(&mut original, 0.5, false);
+        original.snapshot("threshold_flower");
 
-        let original: NDimImage = read_at_sdf().into();
-        let result = super::binary_threshold(original.view(), 0.5, false);
-        result.snapshot("threshold_at_sdf");
+        let mut original: NDimImage = read_at_sdf().into();
+        super::binary_threshold(&mut original, 0.5, false);
+        original.snapshot("threshold_at_sdf");
     }
 
     #[test]
     fn binary_threshold_aa() {
-        let original: NDimImage = read_flower().into();
-        let result = super::binary_threshold(original.view(), 0.5, true);
-        result.snapshot("threshold_aa_flower");
+        let mut original: NDimImage = read_flower().into();
+        super::binary_threshold(&mut original, 0.5, true);
+        original.snapshot("threshold_aa_flower");
 
-        let original: NDimImage = read_at_sdf().into();
-        let result = super::binary_threshold(original.view(), 0.5, true);
-        result.snapshot("threshold_aa_at_sdf");
+        let mut original: NDimImage = read_at_sdf().into();
+        super::binary_threshold(&mut original, 0.5, true);
+        original.snapshot("threshold_aa_at_sdf");
     }
 }
