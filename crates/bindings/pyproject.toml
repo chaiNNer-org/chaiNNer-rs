@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "chainner_ext"
-version = "0.3.7"
+version = "0.3.8"
 description = "Rust implementation of functionality used in chaiNNer"
 requires-python = ">=3.7"
 classifiers = [
