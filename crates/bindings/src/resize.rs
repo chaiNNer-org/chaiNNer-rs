@@ -175,7 +175,7 @@ pub fn resize<'py>(
             with_pixel_format(py, img, new_size, filter)
         }
         2 => {
-            let img: Image<Vec2> = img.load_image()?;
+            let img: Image<[f32; 2]> = img.load_image()?;
             with_pixel_format(py, img, new_size, filter)
         }
         3 => {

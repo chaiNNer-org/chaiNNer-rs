@@ -263,6 +263,33 @@ impl PixelFormat for FloatPixelFormat<[f32; 3]> {
         acc.into()
     }
 }
+impl PixelFormat for FloatPixelFormat<[f32; 2]> {
+    type InputPixel = [f32; 2];
+
+    type OutputPixel = [f32; 2];
+
+    type Accumulator = Vec2;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += Vec2::from(inp) * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc.into()
+    }
+}
 impl PixelFormat for FloatPixelFormat<[f32; 4]> {
     type InputPixel = [f32; 4];
 
