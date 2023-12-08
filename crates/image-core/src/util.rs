@@ -165,3 +165,27 @@ fn into_raw_parts<T>(s: Vec<T>) -> (*mut T, usize, usize) {
     let mut me = ManuallyDrop::new(s);
     (me.as_mut_ptr(), me.len(), me.capacity())
 }
+
+/// Takes a `Vec<T>` and tries to transmute it into a `Vec<U>`.
+///
+/// If the transmute is not possible, the original vector is returned.
+///
+/// # Safety
+///
+/// This operation only safe if `T` can be transmuted into `U`.
+pub unsafe fn vec_try_transmute<T, U>(s: Vec<T>) -> Result<Vec<U>, Vec<T>> {
+    if std::mem::size_of::<T>() != std::mem::size_of::<U>() {
+        // not the same size
+        return Err(s);
+    }
+
+    let (ptr, len, cap) = into_raw_parts(s);
+
+    // check alignment
+    if ptr as usize % std::mem::align_of::<U>() != 0 {
+        // alignment doesn't work out
+        return Err(unsafe { Vec::from_raw_parts(ptr.cast(), len, cap) });
+    }
+
+    Ok(unsafe { Vec::from_raw_parts(ptr.cast(), len, cap) })
+}

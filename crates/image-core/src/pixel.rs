@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use glam::{Vec2, Vec3, Vec3A, Vec4};
 
-use crate::util::{slice_as_chunks, vec_into_chunks, vec_into_flattened};
+use crate::util::{slice_as_chunks, vec_into_chunks, vec_into_flattened, vec_try_transmute};
 
 pub trait Components {
     const COMPONENTS: usize;
@@ -60,6 +60,13 @@ impl Flatten for Vec3A {
 }
 impl Flatten for Vec4 {
     fn flatten_pixels(vec: Vec<Self>) -> Vec<f32> {
+        // we might be able to avoid the copy here by casting the vec directly.
+        let vec = match unsafe { vec_try_transmute::<Vec4, [f32; 4]>(vec) } {
+            Ok(vec) => return vec_into_flattened(vec),
+            Err(vec) => vec,
+        };
+
+        // slow copy *shouldn't* happen
         let vec: Vec<_> = vec.into_iter().map(|x| x.into()).collect();
         vec_into_flattened(vec)
     }
