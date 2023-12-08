@@ -3,21 +3,21 @@ use std::ops::{Add, Mul};
 use glam::{Vec3A, Vec4};
 use image_core::{FromFlat, Image};
 use image_ops::pixel_art::IntoYuv;
-use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray3};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::convert::{get_channels, IntoNumpy, LoadImage};
+use crate::convert::{IntoNumpy, LoadImage, PyImage};
 
 #[pyfunction]
 pub fn pixel_art_upscale<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, f32>,
+    img: PyImage<'py>,
     algorithm: &str,
     scale: u32,
 ) -> PyResult<&'py PyArray3<f32>> {
     fn with_pixel_format<'py, P>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<'py, f32>,
+        img: PyImage<'py>,
         algorithm: &str,
         scale: u32,
     ) -> PyResult<&'py PyArray3<f32>>
@@ -106,7 +106,7 @@ pub fn pixel_art_upscale<'py>(
         Ok(result.into_pyarray(py))
     }
 
-    let c = get_channels(&img);
+    let c = img.channels();
     match c {
         1 => with_pixel_format::<f32>(py, img, algorithm,scale),
         3 => with_pixel_format::<Vec3A>(py, img, algorithm,scale),

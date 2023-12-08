@@ -6,10 +6,10 @@ use image_ops::{
     dither::*,
     palette::{extract_unique_ndim, ExtractionError},
 };
-use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray3};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::convert::{get_channels, IntoNumpy, LoadImage};
+use crate::convert::{IntoNumpy, LoadImage, PyImage};
 
 #[pyclass(frozen)]
 #[derive(Clone, PartialEq, Debug)]
@@ -48,7 +48,7 @@ pub struct PaletteQuantization {
 #[pymethods]
 impl PaletteQuantization {
     #[new]
-    pub fn new(palette: PyReadonlyArrayDyn<f32>) -> PyResult<Self> {
+    pub fn new(palette: PyImage) -> PyResult<Self> {
         let palette: NDimImage = palette.load_image()?;
         if palette.height() != 1 {
             return Err(PyValueError::new_err(format!(
@@ -135,7 +135,7 @@ pub enum DiffusionAlgorithm {
 #[pyfunction]
 pub fn quantize<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, f32>,
+    img: PyImage<'py>,
     quant: Quant,
 ) -> PyResult<&'py PyArray3<f32>> {
     match quant {
@@ -150,7 +150,7 @@ pub fn quantize<'py>(
         Quant::Palette(quant) => {
             fn with_pixel_format<'py, P>(
                 py: Python<'py>,
-                img: PyReadonlyArrayDyn<'py, f32>,
+                img: PyImage<'py>,
                 quant: impl Quantizer<P, P> + Sync,
             ) -> PyResult<&'py PyArray3<f32>>
             where
@@ -165,7 +165,7 @@ pub fn quantize<'py>(
                 Ok(result.into_pyarray(py))
             }
 
-            let c = get_channels(&img);
+            let c = img.channels();
             match c {
                 1 => with_pixel_format::<f32>(py, img, quant.into_quantizer()),
                 3 => with_pixel_format::<Vec3A>(py, img, quant.into_quantizer()),
@@ -183,7 +183,7 @@ pub fn quantize<'py>(
 #[pyfunction]
 pub fn ordered_dither<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<f32>,
+    img: PyImage,
     quant: UniformQuantization,
     map_size: u32,
 ) -> PyResult<&'py PyArray3<f32>> {
@@ -207,7 +207,7 @@ mod diffusion {
 
     use super::*;
 
-    pub struct Config<'py>(pub Python<'py>, pub PyReadonlyArrayDyn<'py, f32>);
+    pub struct Config<'py>(pub Python<'py>, pub PyImage<'py>);
 
     fn with_pixel_format<P>(
         Config(py, img): Config<'_>,
@@ -231,7 +231,7 @@ mod diffusion {
         quant: Quant,
         algorithm: impl image_ops::dither::DiffusionAlgorithm + Send,
     ) -> PyResult<&PyArray3<f32>> {
-        let c = get_channels(&config.1);
+        let c = config.1.channels();
         let err = Err(PyValueError::new_err(format!(
             "Argument '{}' does not have the right shape. Expected 1, 3, or 4 channels but found {}.",
             stringify!(img),
@@ -258,7 +258,7 @@ mod diffusion {
 #[pyfunction]
 pub fn error_diffusion_dither<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, f32>,
+    img: PyImage<'py>,
     quant: Quant,
     algorithm: DiffusionAlgorithm,
 ) -> PyResult<&'py PyArray3<f32>> {
@@ -284,12 +284,7 @@ mod riemersma {
 
     use super::*;
 
-    pub struct Config<'py>(
-        pub Python<'py>,
-        pub PyReadonlyArrayDyn<'py, f32>,
-        pub usize,
-        pub f32,
-    );
+    pub struct Config<'py>(pub Python<'py>, pub PyImage<'py>, pub usize, pub f32);
 
     pub fn with_pixel_format<P>(
         Config(py, img, history_length, decay_ratio): Config<'_>,
@@ -311,7 +306,7 @@ mod riemersma {
 #[pyfunction]
 pub fn riemersma_dither<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, f32>,
+    img: PyImage<'py>,
     quant: Quant,
     history_length: u32,
     decay_ratio: f32,
@@ -325,7 +320,7 @@ pub fn riemersma_dither<'py>(
 
     use riemersma::*;
 
-    let c = get_channels(&img);
+    let c = img.channels();
     let config: Config<'py> = Config(py, img, history_length as usize, decay_ratio);
     let err = PyValueError::new_err(format!(
         "Argument '{}' does not have the right shape. Expected 1, 3, or 4 channels but found {}.",

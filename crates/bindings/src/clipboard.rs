@@ -2,14 +2,13 @@ use image_core::{
     util::{slice_as_chunks, vec_into_flattened},
     NDimCow, NDimView,
 };
-use numpy::PyReadonlyArrayDyn;
 use pyo3::{exceptions::PyValueError, prelude::*};
 use std::{
     borrow::Cow,
     sync::{Arc, Mutex},
 };
 
-use crate::convert::LoadImage;
+use crate::convert::{LoadImage, PyImage};
 
 #[pyclass(frozen)]
 pub struct Clipboard {
@@ -32,7 +31,7 @@ impl Clipboard {
             .map_err(|e| PyValueError::new_err(e.to_string()))
     }
 
-    pub fn write_image(&self, image: PyReadonlyArrayDyn<f32>, pixel_format: &str) -> PyResult<()> {
+    pub fn write_image(&self, image: PyImage, pixel_format: &str) -> PyResult<()> {
         let pixel_format = match pixel_format {
             "RGB" => PixelFormat::Rgb,
             "BGR" => PixelFormat::Bgr,
