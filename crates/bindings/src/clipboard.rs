@@ -1,6 +1,6 @@
 use image_core::{
     util::{slice_as_chunks, vec_into_flattened},
-    NDimImage,
+    NDimCow, NDimView,
 };
 use numpy::PyReadonlyArrayDyn;
 use pyo3::{exceptions::PyValueError, prelude::*};
@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::load_image;
+use crate::convert::LoadImage;
 
 #[pyclass(frozen)]
 pub struct Clipboard {
@@ -44,8 +44,8 @@ impl Clipboard {
             }
         };
 
-        let image: NDimImage = load_image!(image);
-        let image = to_image_data(image, pixel_format)?;
+        let image: NDimCow = image.load_image()?;
+        let image = to_image_data(image.view(), pixel_format)?;
 
         self.get_clipboard()?
             .set_image(image)
@@ -69,7 +69,7 @@ enum PixelFormat {
 }
 
 fn to_image_data(
-    image: NDimImage,
+    image: NDimView,
     pixel_format: PixelFormat,
 ) -> PyResult<arboard::ImageData<'static>> {
     let width = image.width();
@@ -82,10 +82,10 @@ fn to_image_data(
 
     let bytes: Vec<[u8; 4]> = match channels {
         1 => image
-            .take()
-            .into_iter()
+            .data()
+            .iter()
             .map(|v| {
-                let v = to_u8(v);
+                let v = to_u8(*v);
                 [v, v, v, 255]
             })
             .collect(),

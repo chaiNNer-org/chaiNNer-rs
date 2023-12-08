@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use glam::{Vec3A, Vec4};
-use image_core::{AsPixels, Image, NDimImage};
+use image_core::{FromFlat, Image, IntoPixels, NDimImage};
 use image_ops::{
     dither::*,
     palette::{extract_unique_ndim, ExtractionError},
@@ -9,10 +9,7 @@ use image_ops::{
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{
-    convert::{get_channels, IntoNumpy, ToOwnedImage},
-    load_image,
-};
+use crate::convert::{get_channels, IntoNumpy, LoadImage};
 
 #[pyclass(frozen)]
 #[derive(Clone, PartialEq, Debug)]
@@ -52,7 +49,7 @@ pub struct PaletteQuantization {
 impl PaletteQuantization {
     #[new]
     pub fn new(palette: PyReadonlyArrayDyn<f32>) -> PyResult<Self> {
-        let palette: NDimImage = load_image!(palette);
+        let palette: NDimImage = palette.load_image()?;
         if palette.height() != 1 {
             return Err(PyValueError::new_err(format!(
                 "Argument '{}' must have a height of 1.",
@@ -103,14 +100,13 @@ impl PaletteQuantization {
 impl PaletteQuantization {
     fn into_quantizer<P>(self) -> impl Quantizer<P, P>
     where
-        P: Pixel + std::ops::Sub<Output = P>,
-        NDimImage: AsPixels<P>,
+        P: Pixel + std::ops::Sub<Output = P> + FromFlat,
         RGB: ColorSpace<P>,
         BoundError: ErrorCombinator<P>,
     {
         let ndim = NDimImage::new(self.palette.shape(), self.palette.data().to_vec());
         let img: Image<P> = ndim
-            .as_pixels()
+            .into_pixels()
             .expect("Expected shape of palette to match.");
 
         ColorPalette::new(RGB, img.take(), BoundError)
@@ -144,7 +140,7 @@ pub fn quantize<'py>(
 ) -> PyResult<&'py PyArray3<f32>> {
     match quant {
         Quant::Uniform(quant) => {
-            let mut img: NDimImage = load_image!(img);
+            let mut img: NDimImage = img.load_image()?;
             let result = py.allow_threads(|| {
                 image_ops::dither::quantize_ndim(&mut img, quant.inner);
                 img.into_numpy()
@@ -158,11 +154,10 @@ pub fn quantize<'py>(
                 quant: impl Quantizer<P, P> + Sync,
             ) -> PyResult<&'py PyArray3<f32>>
             where
-                P: Pixel + Send,
+                P: Pixel + Send + FromFlat,
                 Image<P>: IntoNumpy,
-                PyReadonlyArrayDyn<'py, f32>: ToOwnedImage<Image<P>>,
             {
-                let mut img: Image<P> = load_image!(img);
+                let mut img: Image<P> = img.load_image()?;
                 let result = py.allow_threads(|| {
                     image_ops::dither::quantize(&mut img, &quant);
                     img.into_numpy()
@@ -199,7 +194,7 @@ pub fn ordered_dither<'py>(
         )));
     }
 
-    let mut img = load_image!(img);
+    let mut img = img.load_image()?;
     let result = py.allow_threads(|| {
         image_ops::dither::ordered_dither(&mut img, map_size as usize, quant.inner);
         img.into_numpy()
@@ -208,21 +203,22 @@ pub fn ordered_dither<'py>(
 }
 
 mod diffusion {
+    use image_core::FromFlat;
+
     use super::*;
 
     pub struct Config<'py>(pub Python<'py>, pub PyReadonlyArrayDyn<'py, f32>);
 
-    fn with_pixel_format<'py, P>(
-        Config(py, img): Config<'py>,
+    fn with_pixel_format<P>(
+        Config(py, img): Config<'_>,
         quant: impl Quantizer<P, P> + Sync,
         algorithm: impl image_ops::dither::DiffusionAlgorithm + Send,
-    ) -> PyResult<&'py PyArray3<f32>>
+    ) -> PyResult<&PyArray3<f32>>
     where
-        P: Pixel + Send,
+        P: Pixel + Send + FromFlat,
         Image<P>: IntoNumpy,
-        PyReadonlyArrayDyn<'py, f32>: ToOwnedImage<Image<P>>,
     {
-        let mut img: Image<P> = load_image!(img);
+        let mut img: Image<P> = img.load_image()?;
         let result = py.allow_threads(|| {
             image_ops::dither::error_diffusion_dither(&mut img, algorithm, &quant);
             img.into_numpy()
@@ -282,6 +278,10 @@ pub fn error_diffusion_dither<'py>(
 }
 
 mod riemersma {
+    use image_core::FromFlat;
+
+    use crate::convert::LoadImage;
+
     use super::*;
 
     pub struct Config<'py>(
@@ -291,16 +291,15 @@ mod riemersma {
         pub f32,
     );
 
-    pub fn with_pixel_format<'py, P>(
-        Config(py, img, history_length, decay_ratio): Config<'py>,
+    pub fn with_pixel_format<P>(
+        Config(py, img, history_length, decay_ratio): Config<'_>,
         quant: impl Quantizer<P, P> + Sync,
-    ) -> PyResult<&'py PyArray3<f32>>
+    ) -> PyResult<&PyArray3<f32>>
     where
-        P: Pixel + Send,
+        P: Pixel + Send + FromFlat,
         Image<P>: IntoNumpy,
-        PyReadonlyArrayDyn<'py, f32>: ToOwnedImage<Image<P>>,
     {
-        let mut img: Image<P> = load_image!(img);
+        let mut img: Image<P> = img.load_image()?;
         let result = py.allow_threads(|| {
             image_ops::dither::riemersma_dither(&mut img, history_length, decay_ratio, &quant);
             img.into_numpy()

@@ -116,6 +116,39 @@ pub fn vec_into_flattened<T, const N: usize>(s: Vec<[T; N]>) -> Vec<T> {
     unsafe { Vec::<T>::from_raw_parts(ptr.cast(), new_len, new_cap) }
 }
 
+/// Takes a `Vec<T>` and chunks it into a `Vec<[T; N]>`.
+///
+/// # Panics
+///
+/// If the length of the vector is not a multiple of `N`.
+pub fn vec_into_chunks<T, const N: usize>(mut s: Vec<T>) -> Vec<[T; N]> {
+    assert!(
+        s.len() % N == 0,
+        "vec_into_chunks: len must be a multiple of N"
+    );
+    s.shrink_to_fit();
+
+    let (ptr, len, cap) = into_raw_parts(s);
+
+    let (new_len, new_cap) = if std::mem::size_of::<T>() == 0 {
+        (len / N, usize::MAX)
+    } else {
+        // SAFETY:
+        // - `cap * N` cannot overflow because the allocation is already in
+        // the address space.
+        // - Each `[T; N]` has `N` valid elements, so there are `len * N`
+        // valid elements in the allocation.
+        (len / N, cap / N)
+    };
+    // SAFETY:
+    // - `ptr` was allocated by `self`
+    // - `ptr` is well-aligned because `[T; N]` has the same alignment as `T`.
+    // - `new_cap` refers to the same sized allocation as `cap` because
+    // `new_cap * size_of::<T>()` == `cap * size_of::<[T; N]>()`
+    // - `len` <= `cap`, so `len * N` <= `cap * N`.
+    unsafe { Vec::<[T; N]>::from_raw_parts(ptr.cast(), new_len, new_cap) }
+}
+
 /// Decomposes a `Vec<T>` into its raw components.
 ///
 /// Returns the raw pointer to the underlying data, the length of
@@ -131,4 +164,28 @@ pub fn vec_into_flattened<T, const N: usize>(s: Vec<[T; N]>) -> Vec<T> {
 fn into_raw_parts<T>(s: Vec<T>) -> (*mut T, usize, usize) {
     let mut me = ManuallyDrop::new(s);
     (me.as_mut_ptr(), me.len(), me.capacity())
+}
+
+/// Takes a `Vec<T>` and tries to transmute it into a `Vec<U>`.
+///
+/// If the transmute is not possible, the original vector is returned.
+///
+/// # Safety
+///
+/// This operation only safe if `T` can be transmuted into `U`.
+pub unsafe fn vec_try_transmute<T, U>(s: Vec<T>) -> Result<Vec<U>, Vec<T>> {
+    if std::mem::size_of::<T>() != std::mem::size_of::<U>() {
+        // not the same size
+        return Err(s);
+    }
+
+    let (ptr, len, cap) = into_raw_parts(s);
+
+    // check alignment
+    if ptr as usize % std::mem::align_of::<U>() != 0 {
+        // alignment doesn't work out
+        return Err(unsafe { Vec::from_raw_parts(ptr.cast(), len, cap) });
+    }
+
+    Ok(unsafe { Vec::from_raw_parts(ptr.cast(), len, cap) })
 }

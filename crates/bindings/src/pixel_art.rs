@@ -1,15 +1,12 @@
 use std::ops::{Add, Mul};
 
 use glam::{Vec3A, Vec4};
-use image_core::Image;
+use image_core::{FromFlat, Image};
 use image_ops::pixel_art::IntoYuv;
 use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{
-    convert::{get_channels, IntoNumpy, ToOwnedImage},
-    load_image,
-};
+use crate::convert::{get_channels, IntoNumpy, LoadImage};
 
 #[pyfunction]
 pub fn pixel_art_upscale<'py>(
@@ -25,11 +22,17 @@ pub fn pixel_art_upscale<'py>(
         scale: u32,
     ) -> PyResult<&'py PyArray3<f32>>
     where
-        P: Default + Copy + PartialEq + IntoYuv + Add<P, Output = P> + Mul<f32, Output = P> + Sync,
+        P: FromFlat
+            + Default
+            + Copy
+            + PartialEq
+            + IntoYuv
+            + Add<P, Output = P>
+            + Mul<f32, Output = P>
+            + Sync,
         Image<P>: IntoNumpy,
-        PyReadonlyArrayDyn<'py, f32>: ToOwnedImage<Image<P>>,
     {
-        let img: Image<P> = load_image!(img);
+        let img: Image<P> = img.load_image()?;
         let result = py.allow_threads(|| {
             let result: Image<P> = match algorithm {
                 "adv_mame" => match scale {
