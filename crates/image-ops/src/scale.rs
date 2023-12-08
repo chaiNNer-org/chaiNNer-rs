@@ -1,6 +1,6 @@
 use glam::{Vec2, Vec3A, Vec4};
-use image_core::{Image, Size};
-use resize::PixelFormat;
+use image_core::{Image, ImageView, Size};
+pub use resize::PixelFormat;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Filter {
@@ -116,45 +116,24 @@ impl From<Filter> for resize::Type {
     }
 }
 
-struct FloatPixelFormat<T, G>
-where
-    G: CorrectGamma<T>,
-{
+pub struct FloatPixelFormat<T> {
     _marker: std::marker::PhantomData<T>,
-    gamma: G,
 }
 
-impl<T, G> FloatPixelFormat<T, G>
-where
-    G: CorrectGamma<T>,
-{
-    pub fn new(gamma: G) -> Self {
+impl<T> FloatPixelFormat<T> {
+    pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
-            gamma,
         }
     }
 }
 
-pub trait ResizePixel:
-    Send + Sync + Copy + Default + std::ops::AddAssign + std::ops::Mul<f32, Output = Self>
-{
-}
+impl PixelFormat for FloatPixelFormat<f32> {
+    type InputPixel = f32;
 
-impl ResizePixel for f32 {}
-impl ResizePixel for Vec2 {}
-impl ResizePixel for Vec3A {}
-impl ResizePixel for Vec4 {}
+    type OutputPixel = f32;
 
-impl<P: ResizePixel, G> PixelFormat for FloatPixelFormat<P, G>
-where
-    G: CorrectGamma<P> + Send + Sync,
-{
-    type InputPixel = P;
-
-    type OutputPixel = P;
-
-    type Accumulator = P;
+    type Accumulator = f32;
 
     #[inline(always)]
     fn new() -> Self::Accumulator {
@@ -163,7 +142,7 @@ where
 
     #[inline(always)]
     fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
-        *acc += self.gamma.to_linear(inp) * coeff;
+        *acc += inp * coeff;
     }
 
     #[inline(always)]
@@ -173,84 +152,150 @@ where
 
     #[inline(always)]
     fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
-        self.gamma.from_linear(acc)
+        acc
+    }
+}
+impl PixelFormat for FloatPixelFormat<Vec2> {
+    type InputPixel = Vec2;
+
+    type OutputPixel = Vec2;
+
+    type Accumulator = Vec2;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc
+    }
+}
+impl PixelFormat for FloatPixelFormat<Vec3A> {
+    type InputPixel = Vec3A;
+
+    type OutputPixel = Vec3A;
+
+    type Accumulator = Vec3A;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc
+    }
+}
+impl PixelFormat for FloatPixelFormat<Vec4> {
+    type InputPixel = Vec4;
+
+    type OutputPixel = Vec4;
+
+    type Accumulator = Vec4;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc
+    }
+}
+impl PixelFormat for FloatPixelFormat<[f32; 3]> {
+    type InputPixel = [f32; 3];
+
+    type OutputPixel = [f32; 3];
+
+    type Accumulator = Vec3A;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += Vec3A::from(inp) * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc.into()
+    }
+}
+impl PixelFormat for FloatPixelFormat<[f32; 4]> {
+    type InputPixel = [f32; 4];
+
+    type OutputPixel = [f32; 4];
+
+    type Accumulator = Vec4;
+
+    #[inline(always)]
+    fn new() -> Self::Accumulator {
+        Default::default()
+    }
+
+    #[inline(always)]
+    fn add(&self, acc: &mut Self::Accumulator, inp: Self::InputPixel, coeff: f32) {
+        *acc += Vec4::from(inp) * coeff;
+    }
+
+    #[inline(always)]
+    fn add_acc(acc: &mut Self::Accumulator, inp: Self::Accumulator, coeff: f32) {
+        *acc += inp * coeff;
+    }
+
+    #[inline(always)]
+    fn into_pixel(&self, acc: Self::Accumulator) -> Self::OutputPixel {
+        acc.into()
     }
 }
 
-pub trait CorrectGamma<T> {
-    fn to_linear(&self, value: T) -> T;
-    #[allow(clippy::wrong_self_convention)]
-    fn from_linear(&self, value: T) -> T;
-}
-
-pub struct NoGammaCorrection;
-impl<T> CorrectGamma<T> for NoGammaCorrection {
-    #[inline(always)]
-    fn to_linear(&self, value: T) -> T {
-        value
-    }
-    #[inline(always)]
-    fn from_linear(&self, value: T) -> T {
-        value
-    }
-}
-
-pub struct GammaCorrection;
-impl GammaCorrection {
-    const TO_LINEAR: f32 = 2.2;
-    const TO_SRGB: f32 = 1.0 / 2.2;
-}
-impl CorrectGamma<f32> for GammaCorrection {
-    #[inline(always)]
-    fn to_linear(&self, value: f32) -> f32 {
-        value.powf(Self::TO_LINEAR)
-    }
-    #[inline(always)]
-    fn from_linear(&self, value: f32) -> f32 {
-        value.powf(Self::TO_SRGB)
-    }
-}
-impl CorrectGamma<Vec2> for GammaCorrection {
-    #[inline(always)]
-    fn to_linear(&self, value: Vec2) -> Vec2 {
-        value.powf(Self::TO_LINEAR)
-    }
-    #[inline(always)]
-    fn from_linear(&self, value: Vec2) -> Vec2 {
-        value.powf(Self::TO_SRGB)
-    }
-}
-impl CorrectGamma<Vec3A> for GammaCorrection {
-    #[inline(always)]
-    fn to_linear(&self, value: Vec3A) -> Vec3A {
-        value.powf(Self::TO_LINEAR)
-    }
-    #[inline(always)]
-    fn from_linear(&self, value: Vec3A) -> Vec3A {
-        value.powf(Self::TO_SRGB)
-    }
-}
-impl CorrectGamma<Vec4> for GammaCorrection {
-    #[inline(always)]
-    fn to_linear(&self, value: Vec4) -> Vec4 {
-        let mut r = value.powf(Self::TO_LINEAR);
-        r.w = value.w; // alpha is not gamma corrected
-        r
-    }
-    #[inline(always)]
-    fn from_linear(&self, value: Vec4) -> Vec4 {
-        let mut r = value.powf(Self::TO_SRGB);
-        r.w = value.w; // alpha is not gamma corrected
-        r
-    }
-}
-
-pub fn scale<P: ResizePixel>(
-    img: &Image<P>,
-    size: Size,
-    filter: Filter,
-    gamma: impl CorrectGamma<P> + Send + Sync,
-) -> Result<Image<P>, resize::Error> {
+pub fn scale<P>(img: ImageView<P>, size: Size, filter: Filter) -> Result<Image<P>, resize::Error>
+where
+    P: Clone + Default,
+    FloatPixelFormat<P>: PixelFormat<InputPixel = P, OutputPixel = P>,
+{
     if size.is_empty() {
         return Ok(Image::new(size, Vec::new()));
     }
@@ -270,7 +315,7 @@ pub fn scale<P: ResizePixel>(
         img.height(),
         size.width,
         size.height,
-        FloatPixelFormat::new(gamma),
+        FloatPixelFormat::new(),
         filter_type,
     )?
     .resize(img.data(), dest.data_mut())?;
@@ -278,9 +323,9 @@ pub fn scale<P: ResizePixel>(
     Ok(dest)
 }
 
-fn nearest_neighbor<P: Clone>(src: &Image<P>, size: Size) -> Image<P> {
+fn nearest_neighbor<P: Clone>(src: ImageView<P>, size: Size) -> Image<P> {
     if src.size() == size {
-        return src.clone();
+        return src.into_owned();
     }
 
     let src_size = src.size();
@@ -351,17 +396,9 @@ mod tests {
     use image_core::Size;
     use test_util::{data::read_portrait, snap::ImageSnapshot};
 
-    use super::{GammaCorrection, NoGammaCorrection};
-
     fn small_portrait() -> image_core::Image<Vec3A> {
         let img = read_portrait();
-        super::scale(
-            &img,
-            img.size().scale(0.5),
-            super::Filter::Linear,
-            NoGammaCorrection,
-        )
-        .unwrap()
+        super::scale(img.view(), img.size().scale(0.5), super::Filter::Linear).unwrap()
     }
 
     #[test]
@@ -370,12 +407,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_nearest_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_nearest_200");
     }
 
@@ -385,12 +422,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_box_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_box_200");
     }
 
@@ -400,12 +437,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_linear_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_linear_200");
     }
 
@@ -415,12 +452,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hermite_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hermite_200");
     }
 
@@ -430,13 +467,13 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_cubic_catrom_4x");
 
         // https://github.com/chaiNNer-org/chaiNNer-rs/pull/20#issuecomment-1839525313
         // let original = read_portrait();
         // let new_size = Size::new(200, 200);
-        // let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        // let nn = super::scale(original.view(), new_size, filter).unwrap();
         // nn.snapshot("resize_cubic_catrom_200");
     }
 
@@ -446,12 +483,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_cubic_bspline_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_cubic_bspline_200");
     }
 
@@ -461,12 +498,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_cubic_mitchell_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_cubic_mitchell_200");
     }
 
@@ -476,12 +513,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hamming_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hamming_200");
     }
 
@@ -491,12 +528,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hann_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_hann_200");
     }
 
@@ -506,13 +543,13 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_lanczos3_4x");
 
         // https://github.com/chaiNNer-org/chaiNNer-rs/pull/20#issuecomment-1839525313
         // let original = read_portrait();
         // let new_size = Size::new(200, 200);
-        // let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        // let nn = super::scale(original.view(), new_size, filter).unwrap();
         // nn.snapshot("resize_lanczos3_200");
     }
 
@@ -522,12 +559,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_gauss_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_gauss_200");
     }
 
@@ -537,27 +574,12 @@ mod tests {
 
         let original = small_portrait();
         let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_lagrange_4x");
 
         let original = read_portrait();
         let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, NoGammaCorrection).unwrap();
+        let nn = super::scale(original.view(), new_size, filter).unwrap();
         nn.snapshot("resize_lagrange_200");
-    }
-
-    #[test]
-    fn scale_gamma() {
-        let filter = super::Filter::CubicCatrom;
-
-        let original = small_portrait();
-        let new_size = original.size().scale(4.);
-        let nn = super::scale(&original, new_size, filter, GammaCorrection).unwrap();
-        nn.snapshot("resize_gamma_correct_4x");
-
-        let original = read_portrait();
-        let new_size = Size::new(200, 200);
-        let nn = super::scale(&original, new_size, filter, GammaCorrection).unwrap();
-        nn.snapshot("resize_gamma_correct_200");
     }
 }

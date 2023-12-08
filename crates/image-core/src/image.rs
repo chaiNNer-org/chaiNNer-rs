@@ -39,6 +39,17 @@ impl Size {
     }
 }
 
+impl From<(usize, usize)> for Size {
+    fn from((width, height): (usize, usize)) -> Self {
+        Self::new(width, height)
+    }
+}
+impl From<(u32, u32)> for Size {
+    fn from((width, height): (u32, u32)) -> Self {
+        Self::new(width as usize, height as usize)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Image<P> {
     data: Vec<P>,
@@ -94,6 +105,9 @@ impl<P> Image<P> {
     pub fn take(self) -> Vec<P> {
         self.data
     }
+    pub fn view(&self) -> ImageView<'_, P> {
+        ImageView::new(self.size(), &self.data)
+    }
 
     /// The pixel data of the image.
     ///
@@ -148,5 +162,84 @@ impl<P> Image<P> {
         P: Clone,
     {
         self.data.fill(c);
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ImageView<'a, P> {
+    data: &'a [P],
+    size: Size,
+}
+
+impl<'a, P> ImageView<'a, P> {
+    pub fn empty() -> Self {
+        Self {
+            data: &[],
+            size: Size::empty(),
+        }
+    }
+    pub fn new(size: Size, data: &'a [P]) -> Self {
+        assert_eq!(size.len(), data.len());
+        Self { data, size }
+    }
+
+    pub fn size(&self) -> Size {
+        self.size
+    }
+
+    pub fn width(&self) -> usize {
+        self.size().width
+    }
+    pub fn height(&self) -> usize {
+        self.size().height
+    }
+    pub fn len(&self) -> usize {
+        self.size().len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.size().is_empty()
+    }
+
+    pub fn into_owned(&self) -> Image<P>
+    where
+        P: Clone,
+    {
+        Image::new(self.size(), self.data().to_vec())
+    }
+
+    /// The pixel data of the image.
+    ///
+    /// Pixel data is layed out in row-major order.
+    pub fn data(&self) -> &'a [P] {
+        self.data
+    }
+
+    /// The pixel data of a single row of the image.
+    pub fn row(&self, y: usize) -> &'a [P] {
+        &self.data()[y * self.width()..(y + 1) * self.width()]
+    }
+
+    pub fn rows(&self) -> ChunksExact<'_, P> {
+        self.data().chunks_exact(self.width())
+    }
+
+    pub fn map<T>(&self, f: impl Fn(&P) -> T) -> Image<T> {
+        Image {
+            data: self.data().iter().map(f).collect(),
+            size: self.size(),
+        }
+    }
+    pub fn map_pos<T>(&self, f: impl Fn(&P, usize, usize) -> T) -> Image<T> {
+        let f = &f;
+        let data = self
+            .rows()
+            .enumerate()
+            .flat_map(|(y, line)| line.iter().enumerate().map(move |(x, p)| f(p, x, y)))
+            .collect();
+
+        Image {
+            data,
+            size: self.size(),
+        }
     }
 }

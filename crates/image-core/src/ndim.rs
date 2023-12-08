@@ -121,7 +121,7 @@ impl<'a> NDimView<'a> {
         self.shape().channels
     }
 
-    pub fn data(&self) -> &[f32] {
+    pub fn data(&self) -> &'a [f32] {
         self.data
     }
 }
