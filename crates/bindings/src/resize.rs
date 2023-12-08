@@ -169,6 +169,31 @@ pub fn resize<'py>(
         }
     }
 
+    // Using vector types involves at least one copy to convert `Vec<[f32; N]>`
+    // -> `Vec<VecN>`. This is a significant overhead that isn't worth it if we
+    // don't upscale by a large amount (=a lot of computation).
+    let mut vec_worth = false;
+
+    let src_pixels = img.shape().iter().product::<usize>() / c;
+    let dst_pixels = new_size.len();
+    let scale_factor = dst_pixels as f64 / src_pixels as f64;
+
+    if c == 4 && scale_factor >= 1.99 {
+        vec_worth = true;
+    }
+    if c == 3 {
+        // Using Vec3A is never worth it. The issue is that we have to pay for
+        // the conversion [f32; 3] <-> Vec3A both ways, which makes it really
+        // expensive. For some slower filters, it actually is little bit worth
+        // it (scales>3 are ~10% faster), but we want to avoid the additional
+        // memory usage.
+        vec_worth = false;
+    }
+    if filter == Filter::Nearest {
+        // NN doesn't interpolate pixels
+        vec_worth = false;
+    }
+
     return match c {
         1 => {
             let img: Image<f32> = img.load_image()?;
@@ -183,8 +208,13 @@ pub fn resize<'py>(
             with_pixel_format(py, img, new_size, filter)
         }
         4 => {
-            let img: Image<[f32; 4]> = img.load_image()?;
-            with_pixel_format(py, img, new_size, filter)
+            if vec_worth {
+                let img: Image<Vec4> = img.load_image()?;
+                with_pixel_format(py, img, new_size, filter)
+            } else {
+                let img: Image<[f32; 4]> = img.load_image()?;
+                with_pixel_format(py, img, new_size, filter)
+            }
         }
         _ => Err(new_error()),
     };
