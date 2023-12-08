@@ -121,6 +121,7 @@ pub struct FloatPixelFormat<T> {
 }
 
 impl<T> FloatPixelFormat<T> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             _marker: std::marker::PhantomData,
