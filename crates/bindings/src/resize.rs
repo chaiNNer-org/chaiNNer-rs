@@ -1,11 +1,11 @@
 use glam::{Vec2, Vec3A, Vec4};
 use image_core::{ClipFloat, Flatten, FromFlat, Image, ImageView, IntoPixels, NDimImage, Size};
 use image_ops::scale::{Filter, FloatPixelFormat, PixelFormat};
-use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray3};
 use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{
-    convert::{get_channels, LoadImage, ViewImage},
+    convert::{LoadImage, PyImage, ViewImage},
     IntoNumpy,
 };
 
@@ -48,7 +48,7 @@ impl From<ResizeFilter> for Filter {
 #[pyfunction]
 pub fn resize<'py>(
     py: Python<'py>,
-    img: PyReadonlyArrayDyn<'py, f32>,
+    img: PyImage<'py>,
     new_size: (u32, u32),
     filter: ResizeFilter,
     mut gamma_correction: bool,
@@ -61,7 +61,7 @@ pub fn resize<'py>(
         gamma_correction = false;
     }
 
-    let c = get_channels(&img);
+    let c = img.channels();
 
     let new_error = || {
         PyValueError::new_err(format!(
@@ -174,7 +174,7 @@ pub fn resize<'py>(
     // don't upscale by a large amount (=a lot of computation).
     let mut vec_worth = false;
 
-    let src_pixels = img.shape().iter().product::<usize>() / c;
+    let src_pixels = img.size().len();
     let dst_pixels = new_size.len();
     let scale_factor = dst_pixels as f64 / src_pixels as f64;
 

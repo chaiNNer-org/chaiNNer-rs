@@ -5,13 +5,12 @@ mod pixel_art;
 mod regex;
 mod resize;
 
-use convert::LoadImage;
 use image_core::{Image, NDimImage};
 use image_ops::fill_alpha::{fill_alpha, FillMode};
-use numpy::{IntoPyArray, PyArray3, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray3};
 use pyo3::prelude::*;
 
-use crate::convert::IntoNumpy;
+use crate::convert::{IntoNumpy, LoadImage, PyImage};
 
 /// A Python module implemented in Rust.
 #[pymodule]
@@ -39,7 +38,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn fill_alpha_fragment_blur<'py>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
+        img: PyImage,
         threshold: f32,
         iterations: u32,
         fragment_count: u32,
@@ -64,7 +63,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn fill_alpha_extend_color<'py>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
+        img: PyImage,
         threshold: f32,
         iterations: u32,
     ) -> PyResult<&'py PyArray3<f32>> {
@@ -85,7 +84,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn fill_alpha_nearest_color<'py>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
+        img: PyImage,
         threshold: f32,
         min_radius: u32,
         anti_aliasing: bool,
@@ -110,7 +109,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn binary_threshold<'py>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
+        img: PyImage,
         threshold: f32,
         anti_aliasing: bool,
     ) -> PyResult<&'py PyArray3<f32>> {
@@ -126,7 +125,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     #[pyfn(m)]
     fn esdf<'py>(
         py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
+        img: PyImage,
         radius: f32,
         cutoff: f32,
         pre_process: bool,
@@ -140,11 +139,7 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    fn fast_gamma<'py>(
-        py: Python<'py>,
-        img: PyReadonlyArrayDyn<f32>,
-        gamma: f32,
-    ) -> PyResult<&'py PyArray3<f32>> {
+    fn fast_gamma<'py>(py: Python<'py>, img: PyImage, gamma: f32) -> PyResult<&'py PyArray3<f32>> {
         let mut img = img.load_image()?;
         let result = py.allow_threads(|| {
             image_ops::gamma::gamma_ndim(&mut img, gamma);
