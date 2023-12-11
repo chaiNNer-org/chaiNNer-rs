@@ -2,7 +2,10 @@ use image_core::{
     util::slice_as_chunks, FromFlat, Image, ImageView, IntoPixels, NDimCow, NDimImage, NDimView,
     Shape, ShapeMismatch, Size,
 };
-use numpy::{ndarray::Array3, IntoPyArray, Ix3, PyArray3, PyReadonlyArray2, PyReadonlyArray3};
+use numpy::{
+    ndarray::{Array3, Dimension},
+    IntoPyArray, Ix3, PyArray3, PyReadonlyArray, PyReadonlyArray2, PyReadonlyArray3,
+};
 use pyo3::{exceptions::PyValueError, FromPyObject, PyResult, Python};
 
 #[derive(FromPyObject)]
@@ -64,13 +67,13 @@ impl PyImage<'_> {
 
         let shape = self.shape();
 
+        fn to_vec<D: Dimension>(img: &PyReadonlyArray<f32, D>) -> Vec<f32> {
+            img.as_array().iter().copied().collect()
+        }
+
         match self {
-            PyImage::D2(img) => {
-                NDimImage::new(shape, img.as_array().to_owned().into_raw_vec()).into()
-            }
-            PyImage::D3(img) => {
-                NDimImage::new(shape, img.as_array().to_owned().into_raw_vec()).into()
-            }
+            PyImage::D2(img) => NDimImage::new(shape, to_vec(img)).into(),
+            PyImage::D3(img) => NDimImage::new(shape, to_vec(img)).into(),
         }
     }
 }
