@@ -112,10 +112,19 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
         img: PyImage,
         threshold: f32,
         anti_aliasing: bool,
+        extra_smoothness: Option<f32>,
     ) -> PyResult<&'py PyArray3<f32>> {
         let mut img: NDimImage = img.load_image()?;
         let result = py.allow_threads(|| {
-            image_ops::threshold::binary_threshold(&mut img, threshold, anti_aliasing);
+            let aa = if anti_aliasing {
+                Some(image_ops::threshold::AntiAliasing {
+                    extra_smoothness: extra_smoothness.unwrap_or(0.0),
+                })
+            } else {
+                None
+            };
+
+            image_ops::threshold::binary_threshold(&mut img, threshold, aa);
             img.into_numpy()
         });
         Ok(result.into_pyarray(py))

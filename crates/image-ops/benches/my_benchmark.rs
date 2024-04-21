@@ -8,7 +8,7 @@ use image_ops::{
     fill_alpha::{fill_alpha, FillMode},
     fragment_blur::{fragment_blur, fragment_blur_alpha},
     palette::extract_unique_ndim,
-    threshold::binary_threshold,
+    threshold::{binary_threshold, AntiAliasing},
 };
 use test_util::data::{
     read_at, read_flower, read_flower_palette, read_flower_transparent, read_lion,
@@ -121,12 +121,12 @@ fn criterion_benchmark(c: &mut Criterion) {
         })
     });
 
-    // c.bench_function("threshold", |b| {
-    //     let img = img_lion_ndim.view();
-    //     b.iter(|| {
-    //         binary_threshold(img, 0.5, true);
-    //     })
-    // });
+    c.bench_function("threshold", |b| {
+        let mut img = img_lion_ndim.clone();
+        b.iter(|| {
+            binary_threshold(&mut img, 0.5, Some(Default::default()));
+        })
+    });
 
     c.bench_function("esdt", |b| {
         b.iter(|| {
