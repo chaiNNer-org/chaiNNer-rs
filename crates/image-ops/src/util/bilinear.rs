@@ -47,12 +47,17 @@ impl BiLinear {
     }
 
     /// Returns the image from x in 0..=0.5 and y in 0..=0.5
+    #[allow(dead_code)]
     pub fn get_first_quadrant(self) -> BiLinear {
+        self.get_top_corner(0.5)
+    }
+    pub fn get_top_corner(self, size: f32) -> BiLinear {
+        debug_assert!((0.0..=1.0).contains(&size));
         BiLinear {
             x0y0: self.sample(0.0, 0.0),
-            x1y0: self.sample(0.5, 0.0),
-            x0y1: self.sample(0.0, 0.5),
-            x1y1: self.sample(0.5, 0.5),
+            x1y0: self.sample(size, 0.0),
+            x0y1: self.sample(0.0, size),
+            x1y1: self.sample(size, size),
         }
     }
     /// Mirrors the image along the (0,0) -> (1,1) diagonal.

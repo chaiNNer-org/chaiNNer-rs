@@ -17,7 +17,7 @@ def fill_alpha_nearest_color(
     img: np.ndarray, threshold: float, min_radius: int, anti_aliasing: bool
 ) -> np.ndarray: ...
 def binary_threshold(
-    img: np.ndarray, threshold: float, anti_aliasing: bool
+    img: np.ndarray, threshold: float, anti_aliasing: bool, extra_smoothness: float = 0.0
 ) -> np.ndarray: ...
 def esdf(
     img: np.ndarray, radius: float, cutoff: float, pre_process: bool, post_process: bool
