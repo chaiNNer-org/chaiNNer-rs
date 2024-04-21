@@ -47,6 +47,7 @@ impl BiLinear {
     }
 
     /// Returns the image from x in 0..=0.5 and y in 0..=0.5
+    #[allow(dead_code)]
     pub fn get_first_quadrant(self) -> BiLinear {
         self.get_top_corner(0.5)
     }
