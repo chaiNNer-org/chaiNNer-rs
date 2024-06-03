@@ -4,9 +4,9 @@ use image_core::{
 };
 use numpy::{
     ndarray::{Array3, Dimension},
-    IntoPyArray, Ix3, PyArray3, PyReadonlyArray, PyReadonlyArray2, PyReadonlyArray3,
+    Ix3, PyReadonlyArray, PyReadonlyArray2, PyReadonlyArray3,
 };
-use pyo3::{exceptions::PyValueError, FromPyObject, PyResult, Python};
+use pyo3::{exceptions::PyValueError, FromPyObject, PyResult};
 
 #[derive(FromPyObject)]
 pub enum PyImage<'py> {
@@ -91,15 +91,6 @@ impl<T: Into<NDimImage>> IntoNumpy for T {
     fn into_numpy(self) -> Array3<f32> {
         let image: NDimImage = self.into();
         new_numpy_array(image.size(), image.channels(), image.take())
-    }
-}
-
-pub trait IntoPy {
-    fn into_py(self, py: Python<'_>) -> &PyArray3<f32>;
-}
-impl<T: IntoNumpy> IntoPy for T {
-    fn into_py(self, py: Python<'_>) -> &PyArray3<f32> {
-        self.into_numpy().into_pyarray(py)
     }
 }
 
