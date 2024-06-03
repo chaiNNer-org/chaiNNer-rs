@@ -94,15 +94,6 @@ impl<T: Into<NDimImage>> IntoNumpy for T {
     }
 }
 
-pub trait IntoPy {
-    fn into_py(self, py: Python<'_>) -> &PyArray3<f32>;
-}
-impl<T: IntoNumpy> IntoPy for T {
-    fn into_py(self, py: Python<'_>) -> &PyArray3<f32> {
-        self.into_numpy().into_pyarray(py)
-    }
-}
-
 pub trait LoadImage<T> {
     fn load_image(self) -> PyResult<T>;
 }
