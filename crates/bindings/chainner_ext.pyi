@@ -7,6 +7,7 @@ import numpy as np
 
 # pylint: disable=unused-argument,missing-class-docstring,missing-function-docstring
 
+
 def fill_alpha_fragment_blur(
     img: np.ndarray, threshold: float, iterations: int, fragment_count: int
 ) -> np.ndarray: ...
@@ -17,7 +18,10 @@ def fill_alpha_nearest_color(
     img: np.ndarray, threshold: float, min_radius: int, anti_aliasing: bool
 ) -> np.ndarray: ...
 def binary_threshold(
-    img: np.ndarray, threshold: float, anti_aliasing: bool, extra_smoothness: float = 0.0
+    img: np.ndarray,
+    threshold: float,
+    anti_aliasing: bool,
+    extra_smoothness: float = 0.0,
 ) -> np.ndarray: ...
 def esdf(
     img: np.ndarray, radius: float, cutoff: float, pre_process: bool, post_process: bool
@@ -25,16 +29,22 @@ def esdf(
 def pixel_art_upscale(img: np.ndarray, algorithm: str, scale: int) -> np.ndarray: ...
 def fast_gamma(img: np.ndarray, gamma: float) -> np.ndarray: ...
 
+
+def load_image(path: str) -> np.ndarray: ...
+
+
 class UniformQuantization:
     @property
     def colors_per_channel(self) -> int: ...
     def __init__(self, colors_per_channel: int) -> None: ...
+
 
 class PaletteQuantization:
     @property
     def channels(self) -> int: ...
     def colors(self) -> int: ...
     def __init__(self, palette: np.ndarray) -> None: ...
+
 
 class DiffusionAlgorithm(Enum):
     FloydSteinberg = 0
@@ -45,6 +55,7 @@ class DiffusionAlgorithm(Enum):
     Sierra = 5
     TwoRowSierra = 6
     SierraLite = 7
+
 
 def quantize(
     img: np.ndarray,
@@ -67,6 +78,7 @@ def riemersma_dither(
     decay_ratio: float,
 ) -> np.ndarray: ...
 
+
 class ResizeFilter(Enum):
     Nearest = 0
     Box = 8
@@ -81,6 +93,7 @@ class ResizeFilter(Enum):
     Lagrange = 7
     Gauss = 5
 
+
 def resize(
     img: np.ndarray,
     new_size: tuple[int, int],
@@ -88,7 +101,9 @@ def resize(
     gamma_correction: bool,
 ) -> np.ndarray: ...
 
+
 # Regex
+
 
 class RustRegex:
     @property
@@ -103,6 +118,7 @@ class RustRegex:
     def split(self, group_name: str) -> List[str]: ...
     def split_without_captures(self, group_name: str) -> List[str]: ...
 
+
 class RegexMatch:
     @property
     def start(self) -> int: ...
@@ -113,6 +129,7 @@ class RegexMatch:
     def get(self, group_index: int) -> MatchGroup | None: ...
     def get_by_name(self, group_name: str) -> MatchGroup | None: ...
 
+
 class MatchGroup:
     @property
     def start(self) -> int: ...
@@ -121,7 +138,9 @@ class MatchGroup:
     @property
     def len(self) -> int: ...
 
+
 # Clipboard
+
 
 class Clipboard:
     def write_text(self, text: str) -> None: ...
