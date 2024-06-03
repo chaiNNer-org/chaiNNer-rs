@@ -8,7 +8,7 @@ mod resize;
 use image_core::{load, Image, NDimImage};
 use image_ops::fill_alpha::{fill_alpha, FillMode};
 use numpy::{IntoPyArray, PyArray3};
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::convert::{IntoNumpy, LoadImage, PyImage};
 
@@ -37,13 +37,11 @@ fn chainner_ext(_py: Python, m: &PyModule) -> PyResult<()> {
     /// Load an image using the Image crate and return it as a numpy image
     #[pyfn(m)]
     fn load_image<'py>(py: Python<'py>, path: &str) -> PyResult<&'py PyArray3<f32>> {
-        // let ndarray = ;
-        // let img = ndarray.into_numpy();
-        let result = py.allow_threads(|| {
-            let img = load::load_image(path).ok().unwrap();
-            img.into_numpy()
+        let result = py.allow_threads(|| match load::load_image(path) {
+            Ok(img) => Ok(img.into_numpy()),
+            Err(e) => Err(PyValueError::new_err(e.to_string())),
         });
-        Ok(result.into_pyarray(py))
+        Ok(result?.into_pyarray(py))
     }
 
     /// Fill the transparent pixels in the given image with nearby colors.
