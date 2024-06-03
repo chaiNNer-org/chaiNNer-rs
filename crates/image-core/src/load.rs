@@ -85,7 +85,7 @@ where
 }
 
 pub fn load_image(path: &str) -> Result<NDimImage, Box<dyn std::error::Error>> {
-    let img = ImageReader::with_guessed_format(ImageReader::open(path)?)?.decode()?;
+    let img = ImageReader::open(path)?.with_guessed_format()?.decode()?;
 
     let size = Size::new(img.width() as usize, img.height() as usize);
 
