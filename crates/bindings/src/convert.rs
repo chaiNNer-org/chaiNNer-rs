@@ -4,9 +4,9 @@ use image_core::{
 };
 use numpy::{
     ndarray::{Array3, Dimension},
-    IntoPyArray, Ix3, PyArray3, PyReadonlyArray, PyReadonlyArray2, PyReadonlyArray3,
+    Ix3, PyReadonlyArray, PyReadonlyArray2, PyReadonlyArray3,
 };
-use pyo3::{exceptions::PyValueError, FromPyObject, PyResult, Python};
+use pyo3::{exceptions::PyValueError, FromPyObject, PyResult};
 
 #[derive(FromPyObject)]
 pub enum PyImage<'py> {
