@@ -1,33 +1,24 @@
-use std::io::Error;
-
-use image::{io::Reader as ImageReader, ColorType};
+use image::io::Reader as ImageReader;
 
 use crate::NDimImage;
 use crate::Shape;
+use crate::Size;
 
-pub fn load_image(path: &str) -> Result<NDimImage, Error> {
-    let img = ImageReader::open(path)
-        .expect("Unable to find image")
-        .decode()
-        .expect("Unable to decode image");
-    let channels: usize = match img.color() {
-        ColorType::Rgba32F => 4,
-        ColorType::Rgba16 => 4,
-        ColorType::Rgba8 => 4,
-        ColorType::Rgb32F => 3,
-        ColorType::Rgb16 => 3,
-        ColorType::Rgb8 => 3,
-        ColorType::L16 => 1,
-        ColorType::L8 => 1,
-        _ => panic!("Unsupported number of channels"),
+pub fn load_image(path: &str) -> Result<NDimImage, Box<dyn std::error::Error>> {
+    let img = ImageReader::open(path)?.decode()?;
+
+    let size = Size::new(img.width() as usize, img.height() as usize);
+
+    let channels = img.color().channel_count();
+    let f32_data = match channels {
+        1 => img.to_luma32f().into_raw(),
+        3 => img.into_rgb32f().into_raw(),
+        _ => img.into_rgba32f().into_raw(),
     };
-    let img_shape = Shape::new(img.width() as usize, img.height() as usize, channels);
-    let converted_img = match channels {
-        4 => img.to_rgba32f().to_vec(),
-        3 => img.to_rgb32f().to_vec(),
-        1 => img.to_luma32f().to_vec(),
-        _ => panic!("Unsupported number of channels"),
-    };
-    let ndarray = NDimImage::new(img_shape, converted_img);
-    return Ok(ndarray);
+
+    assert!(f32_data.len() % size.len() == 0);
+    let channels = f32_data.len() / size.len();
+    let img_shape = Shape::from_size(size, channels);
+
+    Ok(NDimImage::new(img_shape, f32_data))
 }
