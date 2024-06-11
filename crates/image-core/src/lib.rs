@@ -1,4 +1,5 @@
 mod image;
+pub mod load;
 mod ndim;
 mod pixel;
 pub mod util;

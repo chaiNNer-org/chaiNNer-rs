@@ -35,7 +35,7 @@ impl Shape {
     }
 }
 
-/// A 3D image that is similar to how numpy arrays.
+/// A 3D image that is similar to numpy arrays.
 #[derive(Debug, Clone)]
 pub struct NDimImage {
     data: Vec<f32>,
